@@ -22,6 +22,17 @@ import {
 } from "./services/memoirAdapter.mjs";
 import { createAvatar, speak } from "./services/replicasAdapter.mjs";
 import {
+  collectAnalysis,
+  createReplica,
+  deleteReplica,
+  extractFindings,
+  getReplica,
+  openEventStream,
+  replicasConfigured,
+  sendMessage,
+  startTechnicalDueDiligence
+} from "./services/replicasAgent.mjs";
+import {
   assertRequired,
   id,
   normalizeText,
@@ -345,6 +356,98 @@ async function speakHandler(req, res, avatarId) {
   }
 }
 
+// ─── Replicas (real coding-agent) handlers ────────────────────────────────────
+
+async function replicaAnalyzeHandler(req, res) {
+  if (!replicasConfigured()) {
+    return sendJson(res, 200, { configured: false, replicaId: null });
+  }
+  const body = await readJson(req).catch(() => ({}));
+  const label = (body.label || "tech-dd").toString().slice(0, 40).replace(/[^a-z0-9-]/gi, "-");
+  const created = await startTechnicalDueDiligence(label);
+  const replica = created.replica || created;
+  sendJson(res, 200, {
+    configured: true,
+    replicaId: replica.id,
+    status: replica.status,
+    repositories: replica.repositories || []
+  });
+}
+
+async function replicaStatusHandler(_req, res, replicaId) {
+  if (!replicasConfigured()) return sendJson(res, 200, { configured: false });
+  const data = await getReplica(replicaId, { include: "diffs" });
+  const replica = data.replica || data;
+  const repoStatus = replica.repository_statuses?.[0] || null;
+  sendJson(res, 200, {
+    configured: true,
+    id: replica.id,
+    status: replica.status,
+    chats: (replica.chats || []).map((c) => ({ provider: c.provider, processing: c.processing })),
+    repoStatus,
+    lastActivityAt: replica.last_activity_at || null
+  });
+}
+
+async function replicaFindingsHandler(_req, res, replicaId) {
+  if (!replicasConfigured()) return sendJson(res, 200, { configured: false, findings: null });
+  const result = await collectAnalysis(replicaId, { timeoutMs: 90000 });
+  const findings = result.text ? extractFindings({ output: result.text }) : null;
+  sendJson(res, 200, {
+    configured: true,
+    findings,
+    rawText: result.text || "",
+    completed: result.completed,
+    errored: result.errored,
+    telemetry: result.telemetry
+  });
+}
+
+async function replicaMessageHandler(req, res, replicaId) {
+  if (!replicasConfigured()) return sendJson(res, 200, { configured: false });
+  const body = await readJson(req);
+  assertRequired(body, ["message"]);
+  const result = await sendMessage(replicaId, normalizeText(body.message));
+  sendJson(res, 200, { configured: true, ...result });
+}
+
+async function replicaDeleteHandler(_req, res, replicaId) {
+  if (!replicasConfigured()) return sendJson(res, 200, { configured: false });
+  const result = await deleteReplica(replicaId);
+  sendJson(res, 200, result);
+}
+
+// Proxy the upstream Replicas SSE stream to the browser (keeps API key server-side).
+async function replicaStreamHandler(_req, res, replicaId) {
+  if (!replicasConfigured()) {
+    return sendJson(res, 200, { configured: false });
+  }
+  const ctrl = new AbortController();
+  res.on("close", () => ctrl.abort());
+  const upstream = await openEventStream(replicaId, ctrl.signal);
+  if (!upstream.ok || !upstream.body) {
+    return sendJson(res, 502, { error: "Failed to open event stream" });
+  }
+  res.writeHead(200, {
+    "content-type": "text/event-stream",
+    "cache-control": "no-cache",
+    connection: "keep-alive",
+    "access-control-allow-origin": "*"
+  });
+  const reader = upstream.body.getReader();
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      res.write(Buffer.from(value));
+    }
+  } catch {
+    // client disconnected or upstream ended
+  } finally {
+    res.end();
+  }
+}
+
 async function route(req, res) {
   const url = new URL(req.url, `http://${req.headers.host}`);
 
@@ -385,6 +488,30 @@ async function route(req, res) {
   const socialPostsMatch = url.pathname.match(/^\/api\/sessions\/([^/]+)\/social-posts$/);
   if (req.method === "POST" && socialPostsMatch) {
     return socialPostsHandler(req, res, socialPostsMatch[1]);
+  }
+
+  // ── Replicas (real coding-agent) routes ──
+  if (req.method === "POST" && url.pathname === "/api/replica/analyze") {
+    return replicaAnalyzeHandler(req, res);
+  }
+  const replicaStreamMatch = url.pathname.match(/^\/api\/replica\/([^/]+)\/stream$/);
+  if (req.method === "GET" && replicaStreamMatch) {
+    return replicaStreamHandler(req, res, replicaStreamMatch[1]);
+  }
+  const replicaFindingsMatch = url.pathname.match(/^\/api\/replica\/([^/]+)\/findings$/);
+  if (req.method === "GET" && replicaFindingsMatch) {
+    return replicaFindingsHandler(req, res, replicaFindingsMatch[1]);
+  }
+  const replicaMessageMatch = url.pathname.match(/^\/api\/replica\/([^/]+)\/messages$/);
+  if (req.method === "POST" && replicaMessageMatch) {
+    return replicaMessageHandler(req, res, replicaMessageMatch[1]);
+  }
+  const replicaIdMatch = url.pathname.match(/^\/api\/replica\/([^/]+)$/);
+  if (req.method === "GET" && replicaIdMatch) {
+    return replicaStatusHandler(req, res, replicaIdMatch[1]);
+  }
+  if (req.method === "DELETE" && replicaIdMatch) {
+    return replicaDeleteHandler(req, res, replicaIdMatch[1]);
   }
 
   if (req.method === "POST" && url.pathname === "/api/avatars/create") {
