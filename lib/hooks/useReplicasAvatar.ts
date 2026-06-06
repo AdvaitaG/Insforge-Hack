@@ -1,11 +1,11 @@
 /**
  * useReplicasAvatar Hook
- * 
+ *
  * Client-side hook for managing Replicas avatar sessions.
  * Handles avatar creation, speaking, and state management with fallback support.
  */
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useCallback, useRef } from 'react'
 import { AvatarRole, AvatarSession } from '@/lib/types'
 
 type AvatarConfig = {
@@ -29,8 +29,16 @@ export function useReplicasAvatar(): UseReplicasAvatarReturn {
   const [avatarSession, setAvatarSession] = useState<AvatarSession | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const createdRoleRef = useRef<string | null>(null)
+  const spokenTextRef = useRef<string | null>(null)
+  const avatarIdRef = useRef<string | null>(null)
 
   const createAvatar = useCallback(async (config: AvatarConfig) => {
+    const key = `${config.role}:${config.displayName}`
+    if (createdRoleRef.current === key) return
+
+    createdRoleRef.current = key
+    spokenTextRef.current = null
     setIsLoading(true)
     setError(null)
 
@@ -38,7 +46,7 @@ export function useReplicasAvatar(): UseReplicasAvatarReturn {
       const response = await fetch('/api/avatars/create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(config)
+        body: JSON.stringify(config),
       })
 
       if (!response.ok) {
@@ -46,14 +54,16 @@ export function useReplicasAvatar(): UseReplicasAvatarReturn {
       }
 
       const session = await response.json()
+      avatarIdRef.current = session.providerAvatarId ?? null
       setAvatarSession(session)
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to create avatar'
       setError(errorMessage)
-      // Set mock session as fallback
+      const mockId = `mock_${config.role}_${Date.now()}`
+      avatarIdRef.current = mockId
       setAvatarSession({
-        providerAvatarId: `mock_${config.role}_${Date.now()}`,
-        status: 'mock'
+        providerAvatarId: mockId,
+        status: 'mock',
       })
     } finally {
       setIsLoading(false)
@@ -61,19 +71,20 @@ export function useReplicasAvatar(): UseReplicasAvatarReturn {
   }, [])
 
   const speak = useCallback(async (text: string) => {
-    if (!avatarSession?.providerAvatarId) {
+    const avatarId = avatarIdRef.current
+    if (!avatarId) {
       setError('No active avatar session')
       return
     }
+    if (spokenTextRef.current === text) return
 
-    setIsLoading(true)
-    setError(null)
+    spokenTextRef.current = text
 
     try {
-      const response = await fetch(`/api/avatars/${avatarSession.providerAvatarId}/speak`, {
+      const response = await fetch(`/api/avatars/${avatarId}/speak`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text })
+        body: JSON.stringify({ text }),
       })
 
       if (!response.ok) {
@@ -81,18 +92,21 @@ export function useReplicasAvatar(): UseReplicasAvatarReturn {
       }
 
       const updated = await response.json()
+      avatarIdRef.current = updated.providerAvatarId ?? avatarId
       setAvatarSession(updated)
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to make avatar speak'
       setError(errorMessage)
-      // Still update status to speaking for mock mode
-      setAvatarSession((prev: AvatarSession | null) => prev ? { ...prev, status: 'speaking' } : null)
-    } finally {
-      setIsLoading(false)
+      setAvatarSession((prev: AvatarSession | null) =>
+        prev ? { ...prev, status: 'speaking' } : null
+      )
     }
-  }, [avatarSession])
+  }, [])
 
   const reset = useCallback(() => {
+    createdRoleRef.current = null
+    spokenTextRef.current = null
+    avatarIdRef.current = null
     setAvatarSession(null)
     setError(null)
     setIsLoading(false)
@@ -105,6 +119,6 @@ export function useReplicasAvatar(): UseReplicasAvatarReturn {
     isMock: avatarSession?.status === 'mock',
     createAvatar,
     speak,
-    reset
+    reset,
   }
 }

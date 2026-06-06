@@ -2,9 +2,8 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { InvestorType, Session, AvatarRole } from '@/lib/types'
+import { InvestorType, Session } from '@/lib/types'
 import { MOCK_SESSION } from '@/lib/mockData'
-import { useReplicasAvatar } from '@/lib/hooks/useReplicasAvatar'
 import { cacheReport } from '@/lib/reportCache'
 
 type RoomStage = 'pitch' | 'q1' | 'q2' | 'q3' | 'done'
@@ -164,8 +163,6 @@ export default function RoomPage() {
               stage={stage}
               activeInvestor={activeInvestor}
               companyName={companyName}
-              pitch={session.pitch}
-              spokenText={isPitch ? session.pitch : currentQ?.question}
             />
           </div>
 
@@ -314,14 +311,10 @@ function AvatarStage({
   stage,
   activeInvestor,
   companyName,
-  pitch,
-  spokenText,
 }: {
   stage: RoomStage
   activeInvestor: { name: string; title: string; color: string } | null
   companyName: string
-  pitch?: string
-  spokenText?: string
 }) {
   const isPitch = stage === 'pitch'
   const speaker = isPitch
@@ -330,63 +323,16 @@ function AvatarStage({
     ? { name: activeInvestor.name, subtitle: activeInvestor.title, color: activeInvestor.color }
     : null
 
-  const { avatarSession, isLoading, isMock, createAvatar, speak } = useReplicasAvatar()
-  const lastSpoken = useRef<string | null>(null)
-
-  // Create avatar when speaker changes
-  useEffect(() => {
-    if (speaker) {
-      const role: AvatarRole = isPitch ? 'founder' : 
-        activeInvestor?.title === 'Skeptical Partner' ? 'skeptical_partner' :
-        activeInvestor?.title === 'Technical Partner' ? 'technical_partner' : 'growth_partner'
-      
-      createAvatar({
-        role,
-        displayName: speaker.name,
-        persona: isPitch 
-          ? 'Confident technical founder presenting a crisp 60-second Demo Day pitch.'
-          : `Experienced ${activeInvestor?.title.toLowerCase() || 'investor'} asking sharp, relevant questions about the startup.`
-      })
-    }
-  }, [speaker, isPitch, activeInvestor, createAvatar])
-
-  // Speak pitch or investor question when avatar is ready
-  useEffect(() => {
-    if (spokenText && avatarSession && !isLoading && lastSpoken.current !== spokenText) {
-      lastSpoken.current = spokenText
-      speak(spokenText)
-    }
-  }, [spokenText, avatarSession, isLoading, speak])
-
   return (
     <>
-      {/* Replicas avatar embed or fallback */}
-      {avatarSession?.embedUrl ? (
-        <div className="w-56 h-56 rounded-2xl overflow-hidden border-2" style={{ borderColor: speaker?.color ?? '#1E1E2E' }}>
-          <iframe 
-            src={avatarSession.embedUrl} 
-            className="w-full h-full"
-            allow="autoplay; encrypted-media"
-            title={`${speaker?.name} Avatar`}
-          />
-        </div>
-      ) : (
-        <div
-          className="w-56 h-56 rounded-2xl border-2 flex items-center justify-center"
-          style={{ borderColor: speaker?.color ?? '#1E1E2E', backgroundColor: `${speaker?.color ?? '#1E1E2E'}10` }}
-        >
-          {isLoading ? (
-            <div className="text-center">
-              <div className="w-8 h-8 border-2 border-amber border-t-transparent rounded-full animate-spin mx-auto mb-2" />
-              <div className="font-mono text-xs text-muted">Loading avatar...</div>
-            </div>
-          ) : (
-            <span className="font-display text-7xl" style={{ color: speaker?.color ?? '#3E3E52' }}>
-              {speaker?.name?.[0] ?? '?'}
-            </span>
-          )}
-        </div>
-      )}
+      <div
+        className="w-56 h-56 rounded-2xl border-2 flex items-center justify-center"
+        style={{ borderColor: speaker?.color ?? '#1E1E2E', backgroundColor: `${speaker?.color ?? '#1E1E2E'}10` }}
+      >
+        <span className="font-display text-7xl" style={{ color: speaker?.color ?? '#3E3E52' }}>
+          {speaker?.name?.[0] ?? '?'}
+        </span>
+      </div>
 
       {speaker && (
         <div className="absolute bottom-6 left-6 right-6">
@@ -397,7 +343,6 @@ function AvatarStage({
             <span className="w-1.5 h-1.5 rounded-full animate-pulse-live" style={{ backgroundColor: speaker.color }} />
             <span className="font-mono text-sm text-snow">{speaker.name}</span>
             <span className="font-mono text-xs" style={{ color: speaker.color }}>{speaker.subtitle}</span>
-            {isMock && <span className="font-mono text-xs text-dim ml-2">(Mock)</span>}
           </div>
         </div>
       )}
