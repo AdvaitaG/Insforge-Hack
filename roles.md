@@ -463,6 +463,36 @@ Required fallback for judging:
 - The transcript should show the founder pitch and three investor questions.
 - The answer box should still call `POST /api/sessions/:id/answer`.
 
+### Social Post Comment Simulation (new task)
+
+After social posts are generated, simulate realistic user reactions using Replicas agents as fake commenters.
+
+Each generated social post should get 3-5 simulated comments from distinct personas with a mix of positive and skeptical reactions. Comments should feel authentic to the startup's space, not generic.
+
+Commenter persona types to use:
+
+- **Early adopter** — excited, wants access, asks about pricing or waitlist
+- **Industry skeptic** — been burned before, questions whether this is different
+- **Competitor user** — compares to existing tools they already use
+- **Technical user** — digs into how it works, asks architecture questions
+- **Casual observer** — mildly interested, shares or saves for later
+
+Each comment should reference something specific about the post content, not be generic praise or generic criticism.
+
+Return shape:
+
+```ts
+type PostComment = {
+  personaType: string;
+  displayName: string;
+  text: string;
+  sentiment: "positive" | "neutral" | "skeptical";
+  likes: number;
+};
+```
+
+These can be generated via Replicas agent prompts or via a Gemini call with persona context. Either works — just needs to look real on the frontend.
+
 ### doniv Done Criteria
 
 - Founder role can present pitch.
@@ -470,6 +500,7 @@ Required fallback for judging:
 - Each investor can ask one question.
 - Live room can advance through pitch and Q&A.
 - Fallback visual mode works.
+- Social posts have 3-5 simulated user comments each with mixed sentiment.
 
 ## Owner 3: eshwar
 

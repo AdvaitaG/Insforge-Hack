@@ -89,6 +89,38 @@ export function evaluateMockAnswer({ investorType, answer }) {
   };
 }
 
+export function generateMockSocialPosts(context) {
+  const company = context.companyName || "the startup";
+  const desc = context.description || "an AI-powered product";
+  return {
+    x: [
+      { text: `We just launched ${company}.\n\n${desc}\n\nBuilt for the people who've been waiting for this.`, hook: "Announcement", imageData: null },
+      { text: `The problem with most tools in this space: they weren't built for you.\n\n${company} was.`, hook: "Problem", imageData: null },
+      { text: `Here's what we learned building ${company} from scratch:\n\nThe hardest part wasn't the tech. It was explaining why it matters.`, hook: "Story", imageData: null },
+    ],
+    linkedin: [
+      { text: `We've been building ${company} for the past few months, and today we're ready to share it.\n\n${desc}\n\nIf you know someone who could use this, please share. It means the world to an early team.`, hook: "Launch", imageData: null },
+      { text: `The market for this has been broken for years. We stopped waiting for someone else to fix it.\n\n${company}: ${desc}`, hook: "Mission", imageData: null },
+      { text: `Three things we got wrong before we got ${company} right:\n\n1. We built for everyone\n2. We optimized too early\n3. We waited too long to talk to customers\n\nLesson: talk to users first, build second.`, hook: "Lessons", imageData: null },
+    ],
+    hackerNews: [
+      { text: `Show HN: ${company} – ${desc}\n\nWe built this because we kept running into the same problem ourselves. Happy to answer any technical questions.`, hook: "Show HN", imageData: null },
+      { text: `Ask HN: Has anyone else been frustrated by the lack of good tools for ${context.targetCustomer || "this space"}?\n\nWe've been working on ${company} as our answer to this.`, hook: "Ask HN", imageData: null },
+      { text: `Show HN: ${company} – here's what we built and why\n\nStack, decisions, and the honest version of what works and what doesn't yet.`, hook: "Technical", imageData: null },
+    ],
+    productHunt: [
+      { text: `${company} — ${desc}\n\nWe built this for ${context.targetCustomer || "people who need it most"}. No fluff, just the thing that works.`, hook: "Launch", imageData: null },
+      { text: `Introducing ${company}. ${context.problem || "A real problem"} — finally solved.\n\nWould love your feedback as an early user.`, hook: "Problem-Solution", imageData: null },
+      { text: `${company} is live on Product Hunt today.\n\n${desc}\n\nWe've been in closed beta for a while. Now it's open. Come try it.`, hook: "Beta Launch", imageData: null },
+    ],
+    instagram: [
+      { text: `We built something we're proud of.\n\n${company}.\n\n${desc}\n\nLink in bio.\n\n#startup #founder #buildinpublic #launch #tech`, hook: "Launch", imageData: null },
+      { text: `Day 1 energy.\n\nToday ${company} is live.\n\nFor every ${context.targetCustomer || "person"} who's been waiting for something better.\n\n#startuplife #newlaunch #founder #tech #innovation`, hook: "Energy", imageData: null },
+      { text: `The problem was real. The solution took time. The launch is today.\n\n${company} — ${desc}\n\n#buildinpublic #startupfounder #productlaunch #tech #saas`, hook: "Story", imageData: null },
+    ],
+  };
+}
+
 export function generateMockFinalReport({ context, answers }) {
   const answeredCount = answers.filter((item) => item.answer).length;
   const readinessScore = Math.min(88, 62 + answeredCount * 7);
