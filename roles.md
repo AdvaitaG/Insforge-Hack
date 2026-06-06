@@ -491,7 +491,7 @@ type PostComment = {
 };
 ```
 
-These can be generated via Replicas agent prompts or via a Gemini call with persona context. Either works — just needs to look real on the frontend.
+Use Gemini for this — same `GEMINI_API_KEY` already in `.env`, no extra setup needed. Do not use Replicas for comments; Replicas is only for the avatar stage.
 
 ### doniv Done Criteria
 
