@@ -29,6 +29,7 @@ type Tab = 'social' | 'demoday'
 
 type Investor = {
   id: string; name: string; role: string; trait: InvestorTrait; color: string
+  persona?: string; questionStyle?: string
   size: number; floatAnim: string; floatDur: string; floatDelay: string
   bobbleDur: string; bobbleDelay: string
   pos: { left: string; top: string }
@@ -50,7 +51,7 @@ type Star = { x: number; y: number; size: number; opacity: number; dur: number; 
 
 // ─── Investor Data ────────────────────────────────────────────────────────────
 
-const INVESTORS: Investor[] = [
+const DEFAULT_INVESTORS: Investor[] = [
   {
     id: 'pg', name: 'Paul G.', role: 'YC Founder', trait: 'thoughtful', color: '#FF6100',
     size: 78, floatAnim: 'float-1', floatDur: '11s', floatDelay: '0s', bobbleDur: '2.8s', bobbleDelay: '0s',
@@ -155,15 +156,53 @@ const INVESTORS: Investor[] = [
   },
 ]
 
-function initStats(): Record<string, InvestorStats> {
+function initStats(investors: Investor[] = DEFAULT_INVESTORS): Record<string, InvestorStats> {
   return Object.fromEntries(
-    INVESTORS.map(inv => [inv.id, {
+    investors.map(inv => [inv.id, {
       interest: inv.baseInterest, conviction: 0,
       feasibility: inv.trait === 'hostile' ? 48 : inv.trait === 'analytical' ? 75 : 65,
       viability: inv.trait === 'hostile' ? 30 : inv.trait === 'analytical' ? 68 : 55,
       mood: inv.baseMood, thought: inv.thoughts[0], thoughtIdx: 0,
     }])
   )
+}
+
+type AgentPersonality = {
+  id: string
+  role: string
+  displayName: string
+  category: string
+  persona: string
+  questionStyle: string
+  systemPrompt: string
+}
+
+const PERSONALITY_COLORS = ['#FF6100', '#FF3535', '#00B4D8', '#A855F7', '#06D6A0', '#FF6B35']
+const PERSONALITY_TRAITS: InvestorTrait[] = ['thoughtful', 'hostile', 'analytical', 'chaotic', 'probing', 'friendly']
+
+function personalityToInvestor(persona: AgentPersonality, i: number): Investor {
+  const fallback = DEFAULT_INVESTORS[i % DEFAULT_INVESTORS.length]
+  return {
+    ...fallback,
+    id: persona.role,
+    name: persona.displayName,
+    role: persona.category === 'media' ? 'Journalist' : persona.displayName,
+    trait: PERSONALITY_TRAITS[i % PERSONALITY_TRAITS.length],
+    color: PERSONALITY_COLORS[i % PERSONALITY_COLORS.length],
+    persona: persona.persona,
+    questionStyle: persona.questionStyle,
+    thoughts: [
+      persona.persona,
+      persona.questionStyle,
+      `Testing whether ${persona.displayName.toLowerCase()} would believe this pitch.`,
+      'Waiting for a specific, credible answer.',
+    ],
+    pros: [persona.persona, 'Persona is loaded from InsForge Postgres', 'Can be used by Gemini for in-character responses'],
+    cons: [persona.questionStyle, 'Needs founder-specific evidence', 'Needs live demo proof'],
+    feasibilityNote: persona.systemPrompt,
+    viabilityNote: persona.questionStyle,
+    overallNote: `${persona.displayName} is evaluating the pitch through an InsForge-stored persona.`,
+  }
 }
 
 // ─── Chat Response Engine ─────────────────────────────────────────────────────
@@ -466,9 +505,12 @@ function InstagramCard({ post }: { post: SocialPost }) {
 
 function DemoDayTab() {
   const [stars, setStars] = useState<Star[]>([])
+  const params = useParams()
+  const sessionId = params?.id as string | undefined
+  const [investors, setInvestors] = useState<Investor[]>(DEFAULT_INVESTORS)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [speakingId, setSpeakingId] = useState<string | null>(null)
-  const [stats, setStats] = useState<Record<string, InvestorStats>>(initStats)
+  const [stats, setStats] = useState<Record<string, InvestorStats>>(() => initStats(DEFAULT_INVESTORS))
   const [chats, setChats] = useState<Record<string, ChatEntry[]>>({})
   const tickRef = useRef(0)
 
@@ -480,14 +522,33 @@ function DemoDayTab() {
     })))
   }, [])
 
+  useEffect(() => {
+    fetch(`${API_BASE}/api/agent-personalities`)
+      .then(r => r.json())
+      .then(data => {
+        const loaded = (data.personalities ?? [])
+          .filter((p: AgentPersonality) => ['investor', 'media', 'critic', 'judge'].includes(p.category))
+          .slice(0, 6)
+          .map(personalityToInvestor)
+
+        if (loaded.length > 0) {
+          setInvestors(loaded)
+          setStats(initStats(loaded))
+          setSelectedId(null)
+        }
+      })
+      .catch(() => {})
+  }, [])
+
   // Parallel fast simulation — all investors update simultaneously
   useEffect(() => {
     const interval = setInterval(() => {
-      const investor = INVESTORS[tickRef.current % INVESTORS.length]
+      const investor = investors[tickRef.current % investors.length]
       tickRef.current++
 
       setStats(prev => {
         const c = prev[investor.id]
+        if (!c) return prev
         const speed = { hostile: 1.8, analytical: 3.5, thoughtful: 3, chaotic: 5, probing: 2.8, friendly: 4.5 }[investor.trait]
         const jitter = (Math.random() - 0.3) * speed
         return {
@@ -514,21 +575,39 @@ function DemoDayTab() {
     }, 2800)
 
     return () => clearInterval(interval)
-  }, [])
+  }, [investors])
 
   function handleChat(investorId: string, message: string) {
-    const investor = INVESTORS.find(i => i.id === investorId)!
+    const investor = investors.find(i => i.id === investorId)!
     const userEntry: ChatEntry = { id: `u-${Date.now()}`, type: 'user', text: message }
     setChats(prev => ({ ...prev, [investorId]: [...(prev[investorId] ?? []), userEntry] }))
 
-    setTimeout(() => {
-      const reply = getResponse(investor, stats[investorId], message)
-      const botEntry: ChatEntry = { id: `b-${Date.now()}`, type: 'investor', text: reply }
-      setChats(prev => ({ ...prev, [investorId]: [...(prev[investorId] ?? []), botEntry] }))
-    }, 800 + Math.random() * 600)
+    const fallbackText = getResponse(investor, stats[investorId], message)
+
+    fetch(`${API_BASE}/api/investor-response`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        sessionId,
+        investor,
+        message,
+        fallbackText,
+      }),
+    })
+      .then(r => r.json())
+      .then(data => {
+        const reply = data.text || fallbackText
+        const botEntry: ChatEntry = { id: `b-${Date.now()}`, type: 'investor', text: reply }
+        setChats(prev => ({ ...prev, [investorId]: [...(prev[investorId] ?? []), botEntry] }))
+      })
+      .catch(() => {
+        const reply = fallbackText
+        const botEntry: ChatEntry = { id: `b-${Date.now()}`, type: 'investor', text: reply }
+        setChats(prev => ({ ...prev, [investorId]: [...(prev[investorId] ?? []), botEntry] }))
+      })
   }
 
-  const selectedInvestor = INVESTORS.find(i => i.id === selectedId) ?? null
+  const selectedInvestor = investors.find(i => i.id === selectedId) ?? null
 
   return (
     <div className="h-full flex overflow-hidden">
@@ -547,11 +626,11 @@ function DemoDayTab() {
         </div>
 
         {/* Investor bobbleheads */}
-        {INVESTORS.map(inv => (
+        {investors.map(inv => (
           <InvestorBubble
             key={inv.id}
             investor={inv}
-            stats={stats[inv.id]}
+            stats={stats[inv.id] ?? initStats([inv])[inv.id]}
             isSpeaking={speakingId === inv.id}
             isSelected={selectedId === inv.id}
             onClick={() => setSelectedId(prev => prev === inv.id ? null : inv.id)}

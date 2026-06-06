@@ -227,6 +227,69 @@ Scoring guide: 1-4 = vague or evasive, 5-7 = decent but needs sharpening, 8-10 =
   }
 }
 
+// ─── Investor Chat Response ──────────────────────────────────────────────────
+
+export async function generateInvestorResponse(input) {
+  const model = getTextModel();
+  if (!model) {
+    return {
+      text:
+        input.fallbackText ||
+        "I want to understand the actual customer pull here. What evidence do you have that users need this urgently?"
+    };
+  }
+
+  const prompt = `You are roleplaying as an investor or stakeholder in a YC Demo Day simulation.
+
+Startup:
+- Company: ${input.context?.companyName ?? "the startup"}
+- Description: ${input.context?.description ?? ""}
+- Target customer: ${input.context?.targetCustomer ?? ""}
+- Problem: ${input.context?.problem ?? ""}
+- Solution: ${input.context?.solution ?? ""}
+- Why now: ${input.context?.whyNow ?? ""}
+
+Investor persona:
+- Name: ${input.investor?.name ?? input.investor?.displayName ?? "Investor"}
+- Role: ${input.investor?.role ?? "investor"}
+- Trait: ${input.investor?.trait ?? ""}
+- Persona: ${input.investor?.persona ?? ""}
+- Question style: ${input.investor?.questionStyle ?? ""}
+
+User/founder message:
+${input.message}
+
+Return ONLY valid JSON, no markdown or code fences:
+{
+  "text": "a concise in-character response, 1-3 sentences, specific to the startup and the founder's message"
+}
+
+Rules:
+- Stay in the investor/stakeholder persona.
+- Be concrete and conversational.
+- Do not mention that you are Gemini or an AI model.
+- Ask a follow-up question if useful.
+- Avoid generic encouragement.`;
+
+  try {
+    const result = await model.generateContent(prompt);
+    const parsed = JSON.parse(stripJSON(result.response.text()));
+    return {
+      text:
+        parsed.text ||
+        input.fallbackText ||
+        "That helps. The next thing I would test is whether customers repeat this behavior without founder hand-holding."
+    };
+  } catch (error) {
+    console.warn("[memoirAdapter] Gemini investor response failed, using fallback:", error.message);
+    return {
+      text:
+        input.fallbackText ||
+        "I want to understand the actual customer pull here. What evidence do you have that users need this urgently?"
+    };
+  }
+}
+
 // ─── Final Report ─────────────────────────────────────────────────────────────
 
 export async function generateFinalReport(input) {

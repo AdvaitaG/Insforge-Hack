@@ -1,4 +1,5 @@
 import http from "node:http";
+import { readFileSync } from "node:fs";
 import {
   addAvatars,
   addLaunchAssets,
@@ -15,6 +16,7 @@ import { createDefaultAvatars } from "./services/avatars.mjs";
 import {
   evaluateAnswer,
   generateFinalReport,
+  generateInvestorResponse,
   generatePitchPackage,
   generateSocialPostText
 } from "./services/memoirAdapter.mjs";
@@ -28,6 +30,24 @@ import {
   readJson,
   sendJson
 } from "./utils.mjs";
+
+function loadLocalEnv() {
+  try {
+    const raw = readFileSync(".env", "utf8");
+    for (const line of raw.split(/\r?\n/)) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith("#") || !trimmed.includes("=")) continue;
+      const [key, ...valueParts] = trimmed.split("=");
+      if (!process.env[key]) {
+        process.env[key] = valueParts.join("=").replace(/^['"]|['"]$/g, "");
+      }
+    }
+  } catch {
+    // Local .env is optional. Production should use real environment variables.
+  }
+}
+
+loadLocalEnv();
 
 const port = Number(process.env.PORT || 8787);
 const host = process.env.HOST || "127.0.0.1";
@@ -46,6 +66,31 @@ function toStartupContext(startup) {
     productUrl: startup.productUrl,
     repoUrl: startup.repoUrl,
     founderVoiceSample: startup.founderVoiceSample
+  };
+}
+
+function buildPersonaContext(personalities) {
+  const founderHelpers = personalities
+    .filter((persona) =>
+      ["story_coach", "pitch_coach", "yc_partner"].includes(persona.role)
+    )
+    .map(
+      (persona) =>
+        `${persona.displayName}: ${persona.persona} ${persona.questionStyle}`
+    );
+
+  return founderHelpers.length > 0
+    ? `InsForge persona guidance for founder voice: ${founderHelpers.join(" ")}`
+    : "";
+}
+
+function withPersonaContext(context, personalities) {
+  const personaContext = buildPersonaContext(personalities);
+  return {
+    ...context,
+    founderVoiceSample: [context.founderVoiceSample, personaContext]
+      .filter(Boolean)
+      .join("\n")
   };
 }
 
@@ -117,7 +162,10 @@ async function createSessionHandler(req, res) {
     completedAt: null
   });
 
-  const pitchPackage = await generatePitchPackage(toStartupContext(startup));
+  const personalities = await getAgentPersonalities();
+  const pitchPackage = await generatePitchPackage(
+    withPersonaContext(toStartupContext(startup), personalities)
+  );
   const questionRows = pitchPackage.investorQuestions.map((question) => ({
     id: id("question"),
     sessionId,
@@ -234,6 +282,28 @@ async function socialPostsHandler(_req, res, sessionId) {
   sendJson(res, 200, posts);
 }
 
+async function investorResponseHandler(req, res) {
+  const body = await readJson(req);
+  assertRequired(body, ["message"]);
+
+  let context = {};
+  if (body.sessionId) {
+    const session = await getSession(body.sessionId);
+    if (session?.startup) context = toStartupContext(session.startup);
+  } else if (body.context) {
+    context = body.context;
+  }
+
+  const response = await generateInvestorResponse({
+    context,
+    investor: body.investor || {},
+    message: normalizeText(body.message),
+    fallbackText: normalizeText(body.fallbackText)
+  });
+
+  sendJson(res, 200, response);
+}
+
 async function createAvatarHandler(req, res) {
   const body = await readJson(req);
   assertRequired(body, ["role", "displayName", "persona"]);
@@ -275,6 +345,9 @@ async function route(req, res) {
   }
   if (req.method === "POST" && url.pathname === "/api/startups") {
     return createStartupHandler(req, res);
+  }
+  if (req.method === "POST" && url.pathname === "/api/investor-response") {
+    return investorResponseHandler(req, res);
   }
   if (req.method === "POST" && url.pathname === "/api/sessions") {
     return createSessionHandler(req, res);
