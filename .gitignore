@@ -1,5 +1,22 @@
+.DS_Store
 node_modules/
 .next/
 .env
 .env.local
+.data/
+.insforge/
 tsconfig.tsbuildinfo
+
+# InsForge & AI agent skills
+.agent
+.agents
+.augment
+.claude
+.cline
+.github/copilot*
+.kilocode
+.qoder
+.qwen
+.roo
+.trae
+.windsurf

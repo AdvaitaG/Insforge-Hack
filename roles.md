@@ -14,6 +14,114 @@ We are splitting by sponsor/tool so each person owns one clean vertical slice:
 
 Frontend can be vibecoded at the end, but each person should expose simple data/functions that make frontend assembly easy.
 
+## Current Backend Status
+
+Advaita's InsForge slice is now live enough for the team to build against.
+
+Working:
+
+- InsForge project is linked: `YC Sim`.
+- API base for local server: `http://127.0.0.1:8787`.
+- InsForge database tables exist:
+  - `startups`
+  - `pitch_sessions`
+  - `investor_questions`
+  - `launch_assets`
+  - `avatars`
+- Backend API server exists in `src/server`.
+- Backend uses InsForge automatically when `.insforge/project.json` exists.
+- Backend falls back to local JSON if `USE_LOCAL_STORE=true`.
+- Mock trymemoir.ai output already works.
+- Mock avatar metadata already works.
+
+Run backend:
+
+```bash
+npm run dev:api
+```
+
+Expected server log:
+
+```text
+[store] Using InsForge database
+YC Demo Day API running at http://127.0.0.1:8787
+```
+
+## Immediate Handoff
+
+### doniv Needs To Build
+
+Use the existing session response instead of inventing a new data shape.
+
+Call:
+
+```text
+GET /api/sessions/:id
+```
+
+Use:
+
+- `pitch`: founder avatar script.
+- `questions`: investor question scripts.
+- `avatars`: role names, display names, and personas.
+- `startup.companyName`: room/company label.
+
+doniv should add a Replicas integration that can consume these fields and drive the live room.
+
+Minimum shippable version:
+
+- Founder avatar speaks `session.pitch`.
+- Investor cards show the three `session.questions`.
+- Active speaker state advances through founder, skeptical partner, technical partner, growth partner.
+- If Replicas API fails, keep static avatar cards and transcript mode.
+
+### eshwar Needs To Build
+
+Wire trymemoir.ai into:
+
+```text
+src/server/services/memoirAdapter.mjs
+```
+
+Replace the mock functions with real trymemoir.ai calls while preserving the exact returned JSON shape.
+
+Functions to implement:
+
+- `generatePitchPackage(context)`
+- `evaluateAnswer(input)`
+- `generateFinalReport(input)`
+
+Do not change route contracts unless everyone agrees.
+
+Minimum shippable version:
+
+- Generate a real 60-second pitch.
+- Generate exactly three investor questions.
+- Generate launch assets.
+- Score one founder answer.
+- Rewrite the pitch during finalization.
+
+### Frontend Needs To Build
+
+Use the existing backend routes.
+
+Routes:
+
+```text
+POST /api/startups
+POST /api/sessions
+GET /api/sessions/:id
+POST /api/sessions/:id/answer
+POST /api/sessions/:id/finalize
+```
+
+Minimum pages:
+
+- Intake form.
+- Pitch preview.
+- Demo room.
+- Final report.
+
 ## Final Demo Flow
 
 1. User fills startup intake form.
@@ -66,13 +174,23 @@ Make the app actually run end to end. Advaita owns the spine of the product.
 
 ### Build Tasks
 
-1. Set up the app project.
-2. Configure InsForge connection.
-3. Create database tables.
-4. Create API routes for startup creation and session flow.
-5. Store generated pitch packages and answers.
-6. Provide backend endpoints for doniv and eshwar to call.
-7. Deploy or prepare local demo environment.
+Done:
+
+- App project is set up.
+- InsForge CLI is linked.
+- InsForge schema migration is applied.
+- API routes exist.
+- Generated pitch packages and answers persist to InsForge.
+- Mock fallback exists.
+- Local demo API runs.
+
+Remaining:
+
+1. Keep backend running during frontend work.
+2. Help doniv and eshwar debug API shape issues.
+3. Commit and push backend files.
+4. Avoid changing route contracts unless the whole team agrees.
+5. Optional: help deploy if time allows.
 
 ### Tables
 
@@ -151,9 +269,9 @@ Calls eshwar's rewrite function and returns final report.
 
 ### Fallback Responsibility
 
-If APIs fail, Advaita should make sure the app still works with mock data.
+Already implemented. If APIs fail, the app still works with mock data.
 
-Add a mock session with:
+Mock session behavior includes:
 
 - A sample startup.
 - A sample generated pitch.
@@ -183,12 +301,50 @@ Make the demo feel mind-blowing. doniv owns the simulation layer and the "live r
 ### Build Tasks
 
 1. Create Replicas adapter.
-2. Define founder and investor personas.
-3. Create or configure avatar sessions.
-4. Make founder avatar present the generated pitch.
-5. Make investor roles ask questions.
-6. Connect simulation state to frontend.
-7. Add fallback static avatars if Replicas is slow or unavailable.
+2. Use existing `session.avatars` from `GET /api/sessions/:id`.
+3. Use existing `session.pitch` as the founder script.
+4. Use existing `session.questions` as investor scripts.
+5. Create or configure avatar sessions.
+6. Make founder avatar present the generated pitch.
+7. Make investor roles ask questions.
+8. Connect simulation state to frontend.
+9. Add fallback static avatars if Replicas is slow or unavailable.
+
+### Backend Data Available To doniv
+
+Call:
+
+```text
+GET /api/sessions/:id
+```
+
+Use this shape:
+
+```json
+{
+  "pitch": "60-second founder pitch",
+  "questions": [
+    {
+      "id": "question_123",
+      "investorType": "skeptical_partner",
+      "question": "Why is this venture scale?"
+    }
+  ],
+  "avatars": [
+    {
+      "role": "founder",
+      "displayName": "Founder",
+      "persona": "Confident technical founder presenting a crisp 60-second Demo Day pitch."
+    }
+  ]
+}
+```
+
+Recommended implementation:
+
+- Add `src/server/services/replicasAdapter.mjs` if server-side calls are needed.
+- Or keep Replicas client logic in the frontend if their SDK requires browser runtime.
+- Do not create a separate backend session model; use `pitch_sessions`, `investor_questions`, and `avatars`.
 
 ### Agentic Roles
 
@@ -295,6 +451,12 @@ If Replicas fails:
 - Render the pitch and questions in transcript form.
 - Keep the same flow so the demo still works.
 
+Required fallback for judging:
+
+- The room must still advance through all four speakers without Replicas.
+- The transcript should show the founder pitch and three investor questions.
+- The answer box should still call `POST /api/sessions/:id/answer`.
+
 ### doniv Done Criteria
 
 - Founder role can present pitch.
@@ -315,13 +477,41 @@ Make the generated content strong. eshwar owns the marketing brain of the produc
 
 ### Build Tasks
 
-1. Create trymemoir.ai adapter.
-2. Generate 60-second YC-style pitch.
-3. Generate product positioning.
-4. Generate investor questions.
-5. Generate answer feedback.
-6. Generate rewritten pitch after Q&A.
-7. Generate final promotion package.
+1. Replace mock logic inside `src/server/services/memoirAdapter.mjs`.
+2. Preserve the existing function names and return shapes.
+3. Generate 60-second YC-style pitch.
+4. Generate product positioning.
+5. Generate exactly three investor questions.
+6. Generate answer feedback.
+7. Generate rewritten pitch after Q&A.
+8. Generate final promotion package.
+
+### Backend Files For eshwar
+
+Edit:
+
+```text
+src/server/services/memoirAdapter.mjs
+```
+
+Reference mock output:
+
+```text
+src/server/services/mockMemoir.mjs
+```
+
+Do not edit these unless necessary:
+
+```text
+src/server/index.mjs
+src/server/store/
+```
+
+The backend already calls the adapter at the right moments:
+
+- `POST /api/sessions` calls `generatePitchPackage(context)`.
+- `POST /api/sessions/:id/answer` calls `evaluateAnswer(input)`.
+- `POST /api/sessions/:id/finalize` calls `generateFinalReport(input)`.
 
 ### Outputs To Generate
 
@@ -698,4 +888,3 @@ The winning demo is not a perfect product. The winning demo is a believable AI D
 - InsForge to run the app.
 - Replicas to create the simulation.
 - trymemoir.ai to generate the promotion and pitch intelligence.
-
