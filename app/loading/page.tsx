@@ -2,28 +2,29 @@
 
 import { Suspense, useEffect, useRef, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
+import { parseReadmeToStartup } from '@/lib/github'
 
 const STEPS = [
-  { id: 'connect',  label: 'Connecting to GitHub',      detail: null },
-  { id: 'readme',   label: 'Reading README',             detail: null },
-  { id: 'codebase', label: 'Parsing codebase',           detail: null },
-  { id: 'pitch',    label: 'Generating pitch narrative', detail: null },
-  { id: 'room',     label: 'Building investor room',     detail: null },
+  { id: 'connect', label: 'Connecting to GitHub' },
+  { id: 'readme', label: 'Reading README' },
+  { id: 'codebase', label: 'Creating startup profile' },
+  { id: 'pitch', label: 'Generating pitch narrative' },
+  { id: 'room', label: 'Building investor room' },
 ]
-
-const STEP_DELAY = 1500 // ms between steps
-const COMPLETE_DELAY = 1100 // ms after step starts to mark complete
 
 function LoadingContent() {
   const searchParams = useSearchParams()
   const router = useRouter()
-  const repo = searchParams.get('repo') ?? 'your/repo'
+  const repo = searchParams.get('repo') ?? ''
   const companyName = repo.split('/')[1] ?? repo
 
   const [currentStep, setCurrentStep] = useState(0)
   const [completedSteps, setCompletedSteps] = useState<Set<number>>(new Set())
   const [done, setDone] = useState(false)
-  const [stars, setStars] = useState<{ x: number; y: number; size: number; opacity: number; dur: number; delay: number }[]>([])
+  const [error, setError] = useState<string | null>(null)
+  const [stars, setStars] = useState<
+    { x: number; y: number; size: number; opacity: number; dur: number; delay: number }[]
+  >([])
   const started = useRef(false)
 
   useEffect(() => {
@@ -40,32 +41,75 @@ function LoadingContent() {
   }, [])
 
   useEffect(() => {
-    if (started.current) return
+    if (started.current || !repo) return
     started.current = true
 
-    STEPS.forEach((_, i) => {
-      setTimeout(() => setCurrentStep(i), i * STEP_DELAY)
-      setTimeout(() => setCompletedSteps(prev => new Set(Array.from(prev).concat(i))), i * STEP_DELAY + COMPLETE_DELAY)
-    })
+    async function run() {
+      try {
+        setCurrentStep(0)
+        const readmeRes = await fetch(`/api/github/readme?repo=${encodeURIComponent(repo)}`)
+        const readmeData = await readmeRes.json()
+        if (!readmeRes.ok) throw new Error(readmeData.error ?? 'Failed to fetch README')
+        setCompletedSteps((prev) => new Set(Array.from(prev).concat(0)))
 
-    const doneAt = STEPS.length * STEP_DELAY
-    setTimeout(() => setDone(true), doneAt)
-    setTimeout(() => router.push('/dashboard/session_demo'), doneAt + 1800)
-  }, [router])
+        setCurrentStep(1)
+        const startupPayload = parseReadmeToStartup(readmeData.readme, repo)
+        setCompletedSteps((prev) => new Set(Array.from(prev).concat(1)))
+
+        setCurrentStep(2)
+        const startupRes = await fetch('/api/startups', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(startupPayload),
+        })
+        const startup = await startupRes.json()
+        if (!startupRes.ok) throw new Error(startup.error ?? 'Failed to create startup')
+        setCompletedSteps((prev) => new Set(Array.from(prev).concat(2)))
+
+        setCurrentStep(3)
+        const sessionRes = await fetch('/api/sessions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ startupId: startup.id }),
+        })
+        const session = await sessionRes.json()
+        if (!sessionRes.ok) throw new Error(session.error ?? 'Failed to generate pitch')
+        setCompletedSteps((prev) => new Set(Array.from(prev).concat(3)))
+
+        setCurrentStep(4)
+        setCompletedSteps((prev) => new Set(Array.from(prev).concat(4)))
+        setDone(true)
+        setTimeout(() => router.push(`/session/${session.id}`), 1600)
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Something went wrong')
+      }
+    }
+
+    run()
+  }, [repo, router])
 
   const progress = (completedSteps.size / STEPS.length) * 100
 
+  if (!repo) {
+    return (
+      <div className="min-h-screen bg-void flex items-center justify-center">
+        <p className="font-mono text-sm text-muted">No repo specified.</p>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen bg-void flex flex-col relative overflow-hidden">
-      {/* Stars */}
       <div className="absolute inset-0 pointer-events-none">
         {stars.map((s, i) => (
           <div
             key={i}
             className="absolute rounded-full bg-snow"
             style={{
-              left: `${s.x}%`, top: `${s.y}%`,
-              width: `${s.size}px`, height: `${s.size}px`,
+              left: `${s.x}%`,
+              top: `${s.y}%`,
+              width: `${s.size}px`,
+              height: `${s.size}px`,
               opacity: s.opacity,
               animation: `twinkle ${s.dur}s ease-in-out ${s.delay}s infinite`,
             }}
@@ -73,17 +117,25 @@ function LoadingContent() {
         ))}
       </div>
 
-      {/* Top label */}
       <div className="relative z-10 flex items-center justify-between px-8 pt-8">
         <span className="font-display text-amber tracking-widest text-sm">YCSIM</span>
         <span className="font-mono text-xs text-dim">{repo}</span>
       </div>
 
-      {/* Main content */}
       <div className="relative z-10 flex-1 flex flex-col items-center justify-center px-8">
-        {!done ? (
+        {error ? (
+          <div className="text-center space-y-4 max-w-md">
+            <div className="font-display text-3xl text-live">FAILED</div>
+            <p className="font-mono text-sm text-muted">{error}</p>
+            <button
+              onClick={() => router.push('/')}
+              className="font-mono text-sm text-amber border border-amber/30 px-4 py-2 rounded hover:border-amber transition-colors"
+            >
+              ← Try again
+            </button>
+          </div>
+        ) : !done ? (
           <div className="w-full max-w-md space-y-10">
-            {/* Big status word */}
             <div className="overflow-hidden">
               <div
                 key={currentStep}
@@ -94,7 +146,6 @@ function LoadingContent() {
               </div>
             </div>
 
-            {/* Step list */}
             <div className="space-y-4">
               {STEPS.map((step, i) => {
                 const completed = completedSteps.has(i)
@@ -118,8 +169,13 @@ function LoadingContent() {
                         color: completed ? '#060608' : '#F0A500',
                       }}
                     >
-                      {completed ? '✓' : active ? (
-                        <span className="w-1.5 h-1.5 rounded-full bg-amber" style={{ animation: 'pulse-live 1s ease-in-out infinite' }} />
+                      {completed ? (
+                        '✓'
+                      ) : active ? (
+                        <span
+                          className="w-1.5 h-1.5 rounded-full bg-amber"
+                          style={{ animation: 'pulse-live 1s ease-in-out infinite' }}
+                        />
                       ) : null}
                     </div>
 
@@ -131,7 +187,10 @@ function LoadingContent() {
                         {step.label}
                       </span>
                       {completed && i === 1 && (
-                        <span className="font-mono text-xs text-amber/50" style={{ animation: 'fade-in 0.5s ease-out forwards' }}>
+                        <span
+                          className="font-mono text-xs text-amber/50"
+                          style={{ animation: 'fade-in 0.5s ease-out forwards' }}
+                        >
                           found: {companyName}
                         </span>
                       )}
@@ -143,28 +202,54 @@ function LoadingContent() {
           </div>
         ) : (
           <div className="text-center space-y-6">
-            <div className="font-mono text-xs text-amber tracking-[0.3em] uppercase" style={{ animation: 'fade-in 0.6s ease-out forwards' }}>
+            <div
+              className="font-mono text-xs text-amber tracking-[0.3em] uppercase"
+              style={{ animation: 'fade-in 0.6s ease-out forwards' }}
+            >
               Room Ready
             </div>
             <div className="font-display leading-none" style={{ fontSize: 'clamp(60px, 12vw, 100px)' }}>
               <div className="text-snow overflow-hidden">
-                <span style={{ display: 'inline-block', animation: 'reveal-word 0.6s cubic-bezier(0.16,1,0.3,1) 0s both' }}>YOUR</span>
+                <span
+                  style={{
+                    display: 'inline-block',
+                    animation: 'reveal-word 0.6s cubic-bezier(0.16,1,0.3,1) 0s both',
+                  }}
+                >
+                  YOUR
+                </span>
               </div>
               <div className="text-amber overflow-hidden">
-                <span style={{ display: 'inline-block', animation: 'reveal-word 0.6s cubic-bezier(0.16,1,0.3,1) 0.1s both' }}>PITCH</span>
+                <span
+                  style={{
+                    display: 'inline-block',
+                    animation: 'reveal-word 0.6s cubic-bezier(0.16,1,0.3,1) 0.1s both',
+                  }}
+                >
+                  PITCH
+                </span>
               </div>
               <div className="text-snow overflow-hidden">
-                <span style={{ display: 'inline-block', animation: 'reveal-word 0.6s cubic-bezier(0.16,1,0.3,1) 0.2s both' }}>ROOM</span>
+                <span
+                  style={{
+                    display: 'inline-block',
+                    animation: 'reveal-word 0.6s cubic-bezier(0.16,1,0.3,1) 0.2s both',
+                  }}
+                >
+                  ROOM
+                </span>
               </div>
             </div>
-            <div className="font-mono text-xs text-dim" style={{ animation: 'fade-in 1s ease-out 0.8s both' }}>
+            <div
+              className="font-mono text-xs text-dim"
+              style={{ animation: 'fade-in 1s ease-out 0.8s both' }}
+            >
               Entering...
             </div>
           </div>
         )}
       </div>
 
-      {/* Bottom progress bar */}
       <div className="relative z-10 px-0 pb-0">
         <div className="h-0.5 bg-surface w-full">
           <div

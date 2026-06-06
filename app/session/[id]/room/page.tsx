@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation'
 import { InvestorType, Session, AvatarRole } from '@/lib/types'
 import { MOCK_SESSION } from '@/lib/mockData'
 import { useReplicasAvatar } from '@/lib/hooks/useReplicasAvatar'
+import { cacheReport } from '@/lib/reportCache'
 
 type RoomStage = 'pitch' | 'q1' | 'q2' | 'q3' | 'done'
 
@@ -33,6 +34,7 @@ export default function RoomPage() {
   const [currentAnswer, setCurrentAnswer] = useState('')
   const [transcript, setTranscript] = useState<TranscriptEntry[]>([])
   const [timer, setTimer] = useState(0)
+  const [submitting, setSubmitting] = useState(false)
   const transcriptRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -68,7 +70,8 @@ export default function RoomPage() {
   }
 
   const questions = session.questions ?? []
-  const currentQ = stage !== 'pitch' && stage !== 'done' ? questions[STAGE_Q_IDX[stage]] : null
+  const isPitch = stage === 'pitch'
+  const currentQ = !isPitch && stage !== 'done' ? questions[STAGE_Q_IDX[stage]] : null
   const activeInvestor = currentQ ? INVESTORS[currentQ.investorType] : null
   const companyName = session.startup?.companyName ?? session.startupId
 
@@ -87,19 +90,40 @@ export default function RoomPage() {
   }
 
   async function submitAnswer() {
-    if (!currentQ || !currentAnswer.trim()) return
+    if (!currentQ || !currentAnswer.trim() || submitting) return
 
-    const inv = INVESTORS[currentQ.investorType]
-    const newEntry: TranscriptEntry = { speaker: 'You', role: 'founder', text: currentAnswer }
-
+    const answer = currentAnswer.trim()
+    const newEntry: TranscriptEntry = { speaker: 'You', role: 'founder', text: answer }
     const nextIdx = STAGE_Q_IDX[stage] + 1
     const isLast = nextIdx >= questions.length
 
+    setTranscript((t) => [...t, newEntry])
+    setCurrentAnswer('')
+    setSubmitting(true)
+
+    try {
+      await fetch(`/api/sessions/${id}/answer`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ questionId: currentQ.id, answer }),
+      })
+    } catch {}
+
     if (isLast) {
-      setTranscript(t => [...t, newEntry])
-      setCurrentAnswer('')
       try {
-        await fetch(`/api/sessions/${id}/finalize`, { method: 'POST' })
+        const res = await fetch(`/api/sessions/${id}/finalize`, { method: 'POST' })
+        if (res.ok) {
+          const data = await res.json()
+          cacheReport(id, {
+            readinessScore: data.readinessScore,
+            scoreBreakdown: data.scoreBreakdown ?? {},
+            strengths: data.strengths ?? [],
+            weaknesses: data.weaknesses ?? [],
+            rewrittenPitch: data.rewrittenPitch ?? '',
+            launchAssets: data.launchAssets ?? data.session?.launchAssets ?? [],
+            session: data.session,
+          })
+        }
       } catch {}
       router.push(`/session/${id}/report`)
       return
@@ -107,13 +131,12 @@ export default function RoomPage() {
 
     const nextQ = questions[nextIdx]
     const nextInv = INVESTORS[nextQ.investorType]
-    setTranscript(t => [
+    setTranscript((t) => [
       ...t,
-      newEntry,
       { speaker: nextInv.name, role: 'investor', text: nextQ.question },
     ])
-    setCurrentAnswer('')
     setStage(STAGE_ORDER[STAGE_ORDER.indexOf(stage) + 1] as RoomStage)
+    setSubmitting(false)
   }
 
   return (
@@ -137,7 +160,13 @@ export default function RoomPage() {
         <div className="flex-1 flex flex-col border-r border-border">
           {/* Avatar stage — doniv: embed Replicas avatar here */}
           <div className="flex-1 bg-stage flex flex-col items-center justify-center relative">
-            <AvatarStage stage={stage} activeInvestor={activeInvestor} companyName={companyName} pitch={session.pitch} />
+            <AvatarStage
+              stage={stage}
+              activeInvestor={activeInvestor}
+              companyName={companyName}
+              pitch={session.pitch}
+              spokenText={isPitch ? session.pitch : currentQ?.question}
+            />
           </div>
 
           {/* Transcript */}
@@ -234,10 +263,14 @@ export default function RoomPage() {
                 />
                 <button
                   onClick={submitAnswer}
-                  disabled={!currentAnswer.trim()}
+                  disabled={!currentAnswer.trim() || submitting}
                   className="w-full bg-amber text-void font-display text-lg tracking-widest py-2.5 rounded hover:bg-amber-bright transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
                 >
-                  {STAGE_Q_IDX[stage] === questions.length - 1 ? 'FINISH →' : 'SUBMIT →'}
+                  {submitting
+                    ? 'SCORING...'
+                    : STAGE_Q_IDX[stage] === questions.length - 1
+                    ? 'FINISH →'
+                    : 'SUBMIT →'}
                 </button>
               </>
             ) : null}
@@ -282,11 +315,13 @@ function AvatarStage({
   activeInvestor,
   companyName,
   pitch,
+  spokenText,
 }: {
   stage: RoomStage
   activeInvestor: { name: string; title: string; color: string } | null
   companyName: string
   pitch?: string
+  spokenText?: string
 }) {
   const isPitch = stage === 'pitch'
   const speaker = isPitch
@@ -296,6 +331,7 @@ function AvatarStage({
     : null
 
   const { avatarSession, isLoading, isMock, createAvatar, speak } = useReplicasAvatar()
+  const lastSpoken = useRef<string | null>(null)
 
   // Create avatar when speaker changes
   useEffect(() => {
@@ -314,12 +350,13 @@ function AvatarStage({
     }
   }, [speaker, isPitch, activeInvestor, createAvatar])
 
-  // Make avatar speak when pitch is available and we're in pitch stage
+  // Speak pitch or investor question when avatar is ready
   useEffect(() => {
-    if (isPitch && pitch && avatarSession && !isLoading) {
-      speak(pitch)
+    if (spokenText && avatarSession && !isLoading && lastSpoken.current !== spokenText) {
+      lastSpoken.current = spokenText
+      speak(spokenText)
     }
-  }, [isPitch, pitch, avatarSession, isLoading, speak])
+  }, [spokenText, avatarSession, isLoading, speak])
 
   return (
     <>

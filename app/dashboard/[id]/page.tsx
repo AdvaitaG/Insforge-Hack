@@ -1,9 +1,9 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { useParams } from 'next/navigation'
+import { useParams, useRouter } from 'next/navigation'
 
-const API_BASE = 'http://localhost:8787'
+const API_BASE = ''
 
 const COMPANY = {
   name: 'FlowDesk',
@@ -282,6 +282,7 @@ function getResponse(investor: Investor, stats: InvestorStats, message: string):
 
 export default function DashboardPage() {
   const params = useParams()
+  const router = useRouter()
   const sessionId = params?.id as string | undefined
   const [tab, setTab] = useState<Tab>('social')
   return (
@@ -301,7 +302,17 @@ export default function DashboardPage() {
             </button>
           ))}
         </div>
-        <div className="font-mono text-xs text-dim hidden md:block">gemini + replicas</div>
+        <div className="flex items-center gap-3 shrink-0">
+          {sessionId && (
+            <button
+              onClick={() => router.push(`/session/${sessionId}`)}
+              className="font-mono text-xs text-amber border border-amber/30 px-3 py-1.5 rounded hover:border-amber transition-colors hidden sm:block"
+            >
+              PRACTICE PITCH →
+            </button>
+          )}
+          <span className="font-mono text-xs text-dim hidden md:block">gemini + replicas</span>
+        </div>
       </div>
       <div className="flex-1 overflow-hidden">
         {tab === 'social' ? <SocialTab sessionId={sessionId} /> : <DemoDayTab />}
@@ -339,9 +350,9 @@ const SOCIAL_POSTS = {
 
 // ─── Social Tab ───────────────────────────────────────────────────────────────
 
-type Platform = 'x' | 'linkedin' | 'hn' | 'ph' | 'instagram'
+type Platform = 'x' | 'linkedin' | 'hn' | 'ph'
 const PLATFORM_LABELS: Record<Platform, string> = {
-  x: 'X / Twitter', linkedin: 'LinkedIn', hn: 'Hacker News', ph: 'Product Hunt', instagram: 'Instagram'
+  x: 'X / Twitter', linkedin: 'LinkedIn', hn: 'Hacker News', ph: 'Product Hunt',
 }
 
 type SimComment = {
@@ -427,7 +438,7 @@ function SocialTab({ sessionId }: { sessionId?: string }) {
   const [active, setActive] = useState<Platform>('x')
   const [posts, setPosts] = useState<SocialPosts | null>(null)
   const [loading, setLoading] = useState(false)
-  const [postIndex, setPostIndex] = useState<Record<Platform, number>>({ x: 0, linkedin: 0, hn: 0, ph: 0, instagram: 0 })
+  const [postIndex, setPostIndex] = useState<Record<Platform, number>>({ x: 0, linkedin: 0, hn: 0, ph: 0 })
 
   useEffect(() => {
     if (!sessionId) return
@@ -492,7 +503,6 @@ function SocialTab({ sessionId }: { sessionId?: string }) {
               {active === 'linkedin' && <LinkedInCard post={currentPosts[idx] ?? null} />}
               {active === 'hn' && <HNCard post={currentPosts[idx] ?? null} />}
               {active === 'ph' && <PHCard post={currentPosts[idx] ?? null} />}
-              {active === 'instagram' && <InstagramCard post={currentPosts[idx] ?? null} />}
             </div>
           )}
         </div>
@@ -506,141 +516,130 @@ function SocialTab({ sessionId }: { sessionId?: string }) {
   )
 }
 
+// ─── X / Twitter Card ────────────────────────────────────────────────────────
+
 function XCard({ post }: { post: SocialPost | null }) {
   const p = SOCIAL_POSTS.x
   const text = post?.text ?? p.text
   const [open, setOpen] = useState(false)
-  const comments = SIMULATED_COMMENTS.x
+  const S = { fontFamily: '-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif' }
   return (
-    <div>
-      <div className={`border border-border p-6 space-y-4 ${open ? 'rounded-t-2xl' : 'rounded-2xl'}`} style={{ background: '#0f1419', borderBottom: open ? '1px solid rgba(255,255,255,0.04)' : undefined }}>
-        <div className="flex items-start gap-3">
-          <div className="w-10 h-10 rounded-full bg-amber flex items-center justify-center text-void font-display text-lg shrink-0">{p.name[0]}</div>
-          <div><div className="text-snow text-sm font-medium">{p.name}</div><div className="text-muted font-mono text-xs">{p.handle} · {p.time}</div></div>
-        </div>
-        <p className="text-snow/90 text-sm leading-relaxed whitespace-pre-line">{text}</p>
-        <div className="flex items-center gap-6 pt-2 border-t border-white/5">
-          <button onClick={() => setOpen(v => !v)} className="font-mono text-xs text-muted hover:text-snow transition-colors">
-            💬 {p.replies.toLocaleString()} {open ? '▲' : '▼'}
-          </button>
-          <span className="font-mono text-xs text-muted">🔁 {p.retweets.toLocaleString()}</span>
-          <span className="font-mono text-xs text-muted">❤️ {p.likes.toLocaleString()}</span>
-        </div>
-      </div>
-      {open && (
-        <div className="border border-t-0 border-border rounded-b-2xl overflow-hidden" style={{ background: '#090d12' }}>
-          {comments.map(c => (
-            <div key={c.id} className="px-4 py-3 border-b border-white/[0.04] last:border-0 flex gap-3"
-              style={{ background: c.isFounder ? 'rgba(255,97,0,0.05)' : 'transparent' }}>
-              <div className="w-8 h-8 rounded-full shrink-0 flex items-center justify-center font-mono text-xs font-bold mt-0.5"
-                style={{ background: c.isFounder ? '#FF610022' : '#ffffff0e', color: c.isFounder ? '#FF6100' : '#6E6E84' }}>
-                {c.author[0]}
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-baseline gap-2 flex-wrap">
-                  <span className="text-snow text-xs font-medium">{c.author}</span>
-                  <span className="text-muted font-mono text-xs">{c.handle}</span>
-                  <span className="text-dim font-mono text-xs ml-auto">{c.timeAgo}</span>
-                </div>
-                <p className="text-snow/75 text-xs mt-1 leading-relaxed">{c.text}</p>
-                <div className="flex gap-4 mt-1.5">
-                  <span className="text-dim font-mono text-xs">❤️ {c.likes?.toLocaleString()}</span>
-                  {c.replies ? <span className="text-dim font-mono text-xs">💬 {c.replies}</span> : null}
-                </div>
-              </div>
+    <div style={{ ...S, borderRadius: 16, overflow: 'hidden', border: '1px solid #2f3336' }}>
+      {/* Tweet */}
+      <div style={{ background: '#000', padding: '12px 16px' }}>
+        <div style={{ display: 'flex', gap: 12 }}>
+          <div style={{ width: 40, height: 40, borderRadius: '50%', background: '#FF6100', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#000', fontWeight: 800, fontSize: 18, flexShrink: 0 }}>F</div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap' }}>
+              <span style={{ color: '#fff', fontWeight: 700, fontSize: 15 }}>{p.name}</span>
+              <span style={{ color: '#71767b', fontSize: 15 }}>{p.handle}</span>
+              <span style={{ color: '#71767b', fontSize: 15 }}>·</span>
+              <span style={{ color: '#71767b', fontSize: 15 }}>{p.time}</span>
             </div>
-          ))}
-        </div>
-      )}
-    </div>
-  )
-}
-
-function LinkedInCard({ post }: { post: SocialPost | null }) {
-  const p = SOCIAL_POSTS.linkedin
-  const text = post?.text ?? p.text
-  const [open, setOpen] = useState(false)
-  const comments = SIMULATED_COMMENTS.linkedin
-  return (
-    <div>
-      <div className={`border border-border p-6 space-y-4 ${open ? 'rounded-t-2xl' : 'rounded-2xl'}`} style={{ background: '#1c1c1c', borderBottom: open ? '1px solid rgba(255,255,255,0.05)' : undefined }}>
-        <div className="flex items-start gap-3">
-          <div className="w-12 h-12 rounded-xl flex items-center justify-center text-white font-display text-xl shrink-0" style={{ background: '#0A66C2' }}>{p.name[0]}</div>
-          <div><div className="text-snow text-sm font-medium">{p.name}</div><div className="text-muted font-mono text-xs">{p.headline}</div><div className="text-dim font-mono text-xs mt-0.5">{p.time} · 🌐</div></div>
-        </div>
-        <p className="text-snow/85 text-sm leading-relaxed whitespace-pre-line">{text}</p>
-        <div className="flex gap-4 pt-3 border-t border-white/5">
-          <span className="text-muted font-mono text-xs">👍 {p.likes.toLocaleString()}</span>
-          <button onClick={() => setOpen(v => !v)} className="font-mono text-xs text-muted hover:text-snow transition-colors">
-            💬 {p.comments} comments {open ? '▲' : '▼'}
-          </button>
-        </div>
-      </div>
-      {open && (
-        <div className="border border-t-0 border-border rounded-b-2xl overflow-hidden" style={{ background: '#181818' }}>
-          {comments.map(c => (
-            <div key={c.id} className="px-4 py-4 border-b border-white/[0.04] last:border-0 flex gap-3"
-              style={{ background: c.isFounder ? 'rgba(10,102,194,0.08)' : 'transparent' }}>
-              <div className="w-9 h-9 rounded-full shrink-0 flex items-center justify-center font-mono text-xs font-bold"
-                style={{ background: c.isFounder ? '#0A66C230' : '#ffffff12', color: c.isFounder ? '#70b5f9' : '#6E6E84' }}>
-                {c.author[0]}
-              </div>
-              <div className="flex-1">
-                <div className="text-snow text-xs font-medium">{c.author}</div>
-                <div className="text-muted font-mono text-xs">{c.title}</div>
-                <p className="text-snow/75 text-xs mt-2 leading-relaxed">{c.text}</p>
-                <div className="flex gap-3 mt-2">
-                  <span className="text-dim font-mono text-xs">👍 {c.likes?.toLocaleString()}</span>
-                  <span className="text-dim font-mono text-xs">{c.timeAgo}</span>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  )
-}
-
-function HNCard({ post }: { post: SocialPost | null }) {
-  const p = SOCIAL_POSTS.hn
-  const text = post?.text ?? p.text
-  const [open, setOpen] = useState(false)
-  const comments = SIMULATED_COMMENTS.hn
-  return (
-    <div>
-      <div className={`border border-border p-6 space-y-3 ${open ? 'rounded-t-2xl' : 'rounded-2xl'}`} style={{ background: '#1a0f00', borderBottom: open ? '1px solid rgba(255,150,0,0.1)' : undefined }}>
-        <div className="flex items-start gap-3">
-          <div className="flex flex-col items-center shrink-0">
-            <div className="text-amber text-lg leading-none">▲</div>
-            <div className="font-mono text-sm text-amber font-bold">{p.points}</div>
-          </div>
-          <div className="space-y-2">
-            <div className="text-snow font-medium text-sm">{p.title}</div>
-            <p className="text-snow/70 text-xs leading-relaxed">{post?.text ?? p.text}</p>
-            <div className="font-mono text-xs text-dim">
-              submitted {p.time} by <span className="text-amber/70">{p.submitter}</span> ·{' '}
-              <button onClick={() => setOpen(v => !v)} className="text-amber/70 hover:text-amber transition-colors">
-                {p.comments} comments {open ? '▲' : '▼'}
+            <p style={{ color: '#e7e9ea', fontSize: 15, lineHeight: '20px', margin: '4px 0 12px', whiteSpace: 'pre-line' }}>{text}</p>
+            {/* Stats bar */}
+            <div style={{ display: 'flex', color: '#71767b', fontSize: 13, padding: '4px 0', borderTop: '1px solid #2f3336', marginTop: 4 }}>
+              <button onClick={() => setOpen(v => !v)} style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'none', border: 'none', color: '#71767b', cursor: 'pointer', flex: 1, padding: '8px 0' }}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M1.751 10c0-4.42 3.584-8 8.005-8h4.366c4.49 0 8.129 3.64 8.129 8.13 0 2.96-1.607 5.68-4.196 7.11l-8.054 4.46v-3.69h-.067c-4.49.1-8.183-3.51-8.183-8.01z" stroke="currentColor" strokeWidth="2"/></svg>
+                {p.replies.toLocaleString()}
+              </button>
+              <button style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'none', border: 'none', color: '#71767b', cursor: 'pointer', flex: 1, padding: '8px 0' }}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M4.5 3.88l4.432 4.14-1.364 1.46L5.5 7.55V16c0 1.1.896 2 2 2H13v2H7.5c-2.209 0-4-1.79-4-4V7.55L1.432 9.48.068 8.02 4.5 3.88zM16.5 6H11V4h5.5c2.209 0 4 1.79 4 4v8.45l2.068-1.93 1.364 1.46-4.432 4.14-4.432-4.14 1.364-1.46 2.068 1.93V8c0-1.1-.896-2-2-2z"/></svg>
+                {p.retweets.toLocaleString()}
+              </button>
+              <button style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'none', border: 'none', color: '#71767b', cursor: 'pointer', flex: 1, padding: '8px 0' }}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M16.697 5.5c-1.222-.06-2.679.51-3.89 2.16l-.805 1.09-.806-1.09C9.984 6.01 8.526 5.44 7.304 5.5c-1.243.07-2.349.78-2.91 1.91-.552 1.12-.633 2.78.479 4.82 1.074 1.97 3.257 4.27 7.129 6.61 3.87-2.34 6.052-4.64 7.126-6.61 1.111-2.04 1.03-3.7.477-4.82-.561-1.13-1.666-1.84-2.908-1.91zm4.187 7.69c-1.351 2.48-4.001 5.12-8.379 7.67l-.503.3-.504-.3c-4.379-2.55-7.029-5.19-8.382-7.67-1.36-2.5-1.41-4.86-.514-6.67.887-1.79 2.647-2.91 4.601-3.01 1.651-.09 3.368.56 4.798 2.01 1.429-1.45 3.146-2.1 4.796-2.01 1.954.1 3.714 1.22 4.601 3.01.896 1.81.846 4.17-.514 6.67z"/></svg>
+                {p.likes.toLocaleString()}
+              </button>
+              <button style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'none', border: 'none', color: '#71767b', cursor: 'pointer', flex: 1, padding: '8px 0' }}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M8.75 21V3h2v18h-2zM18 21V8.5h2V21h-2zM4 21l.004-10h2L6 21H4zm9.248 0v-7h2v7h-2z"/></svg>
+                14.2K
               </button>
             </div>
           </div>
         </div>
       </div>
-      {open && (
-        <div className="border border-t-0 border-border rounded-b-2xl overflow-hidden divide-y divide-amber/5" style={{ background: '#120a00' }}>
-          {comments.map(c => (
-            <div key={c.id} className="px-4 py-3 flex gap-3"
-              style={{ background: c.isFounder ? 'rgba(255,150,0,0.06)' : 'transparent' }}>
-              <div className="flex flex-col items-center shrink-0 gap-0.5 mt-0.5">
-                <span className="text-amber/60 text-xs leading-none">▲</span>
-                <span className="font-mono text-xs text-amber font-bold">{c.points}</span>
+      {/* Replies */}
+      {open && SIMULATED_COMMENTS.x.map(c => (
+        <div key={c.id} style={{ background: c.isFounder ? '#0a0500' : '#000', borderTop: '1px solid #2f3336', padding: '12px 16px', display: 'flex', gap: 12 }}>
+          <div style={{ width: 32, height: 32, borderRadius: '50%', background: c.isFounder ? '#FF6100' : '#2f3336', display: 'flex', alignItems: 'center', justifyContent: 'center', color: c.isFounder ? '#000' : '#71767b', fontSize: 12, fontWeight: 700, flexShrink: 0 }}>{c.author[0]}</div>
+          <div style={{ flex: 1 }}>
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+              <span style={{ color: '#e7e9ea', fontWeight: 700, fontSize: 14 }}>{c.author}</span>
+              <span style={{ color: '#71767b', fontSize: 14 }}>{c.handle}</span>
+              <span style={{ color: '#71767b', fontSize: 14 }}>· {c.timeAgo}</span>
+            </div>
+            <p style={{ color: '#e7e9ea', fontSize: 14, lineHeight: '20px', margin: '2px 0 8px' }}>{c.text}</p>
+            <div style={{ display: 'flex', gap: 20, color: '#71767b', fontSize: 12 }}>
+              <span>💬 {c.replies}</span><span>🔁</span><span>❤️ {c.likes?.toLocaleString()}</span>
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+// ─── LinkedIn Card ────────────────────────────────────────────────────────────
+
+function LinkedInCard({ post }: { post: SocialPost | null }) {
+  const p = SOCIAL_POSTS.linkedin
+  const text = post?.text ?? p.text
+  const [open, setOpen] = useState(false)
+  const S = { fontFamily: '-apple-system,"Segoe UI",Roboto,"Noto Sans",sans-serif' }
+  return (
+    <div style={{ ...S, borderRadius: 8, overflow: 'hidden', boxShadow: '0 0 0 1px rgba(0,0,0,0.08), 0 2px 8px rgba(0,0,0,0.12)' }}>
+      {/* Post */}
+      <div style={{ background: '#fff' }}>
+        <div style={{ padding: '12px 16px 0' }}>
+          {/* Profile row */}
+          <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+            <div style={{ width: 48, height: 48, borderRadius: '50%', background: '#0A66C2', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 20, fontWeight: 700 }}>P</div>
+            <div style={{ flex: 1 }}>
+              <div style={{ color: '#000000de', fontWeight: 600, fontSize: 14, lineHeight: '20px' }}>
+                {p.name} <span style={{ color: '#00000099', fontWeight: 400, fontSize: 12 }}>• 2nd</span>
               </div>
-              <div className="flex-1">
-                <div className="font-mono text-xs text-amber/70 mb-1">
-                  {c.author}{c.isFounder ? ' (founder)' : ''} · {c.timeAgo}
+              <div style={{ color: '#00000099', fontSize: 12, lineHeight: '16px' }}>{p.headline}</div>
+              <div style={{ color: '#00000099', fontSize: 12 }}>{p.time} · <span style={{ fontSize: 13 }}>🌐</span></div>
+            </div>
+            <button style={{ alignSelf: 'flex-start', color: '#0A66C2', fontWeight: 600, fontSize: 14, background: 'none', border: 'none', cursor: 'pointer', padding: '4px 0' }}>+ Follow</button>
+          </div>
+          <p style={{ color: '#000000de', fontSize: 14, lineHeight: '20px', marginBottom: 12, whiteSpace: 'pre-line' }}>{text}</p>
+          {/* Reactions summary */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid rgba(0,0,0,0.08)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4, color: '#00000099', fontSize: 12 }}>
+              <span style={{ fontSize: 14 }}>👍</span><span style={{ fontSize: 14 }}>💡</span><span style={{ fontSize: 14 }}>❤️</span>
+              <span style={{ marginLeft: 2 }}>{p.likes.toLocaleString()}</span>
+            </div>
+            <button onClick={() => setOpen(v => !v)} style={{ color: '#00000099', fontSize: 12, background: 'none', border: 'none', cursor: 'pointer' }}>
+              {p.comments} comments {open ? '▲' : '▼'}
+            </button>
+          </div>
+          {/* Action bar */}
+          <div style={{ display: 'flex', justifyContent: 'space-around' }}>
+            {[['👍', 'Like'], ['💬', 'Comment'], ['↺', 'Repost'], ['➤', 'Send']].map(([icon, label]) => (
+              <button key={label} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '10px 8px', borderRadius: 4, background: 'none', border: 'none', cursor: 'pointer', color: '#00000099', fontSize: 13, fontWeight: 600 }}>
+                <span style={{ fontSize: 16 }}>{icon}</span>{label}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+      {/* Comments */}
+      {open && (
+        <div style={{ background: '#f3f2ef' }}>
+          {SIMULATED_COMMENTS.linkedin.map(c => (
+            <div key={c.id} style={{ padding: '12px 16px', display: 'flex', gap: 8, background: c.isFounder ? '#e8f0fb' : 'transparent', borderTop: '1px solid rgba(0,0,0,0.06)' }}>
+              <div style={{ width: 36, height: 36, borderRadius: '50%', background: c.isFounder ? '#0A66C2' : '#8f5849', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 13, fontWeight: 700, flexShrink: 0 }}>{c.author[0]}</div>
+              <div style={{ flex: 1 }}>
+                <div style={{ background: '#fff', borderRadius: 8, padding: '8px 12px', boxShadow: '0 0 0 1px rgba(0,0,0,0.06)' }}>
+                  <div style={{ color: '#000000de', fontWeight: 600, fontSize: 13 }}>{c.author}{c.isFounder ? ' • Author' : ''}</div>
+                  <div style={{ color: '#00000099', fontSize: 12 }}>{c.title}</div>
+                  <p style={{ color: '#000000cc', fontSize: 13, lineHeight: '18px', marginTop: 6 }}>{c.text}</p>
                 </div>
-                <p className="text-snow/75 text-xs leading-relaxed font-mono">{c.text}</p>
+                <div style={{ display: 'flex', gap: 12, marginTop: 4, color: '#00000099', fontSize: 12 }}>
+                  <span>👍 {c.likes?.toLocaleString()}</span><span style={{ cursor: 'pointer' }}>Like</span><span style={{ cursor: 'pointer' }}>Reply</span><span>{c.timeAgo}</span>
+                </div>
               </div>
             </div>
           ))}
@@ -649,110 +648,128 @@ function HNCard({ post }: { post: SocialPost | null }) {
     </div>
   )
 }
+
+// ─── Hacker News Card ─────────────────────────────────────────────────────────
+
+function HNCard({ post }: { post: SocialPost | null }) {
+  const p = SOCIAL_POSTS.hn
+  const [open, setOpen] = useState(false)
+  const S = { fontFamily: 'Verdana,Geneva,sans-serif' }
+  return (
+    <div style={{ ...S, borderRadius: 6, overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.2)' }}>
+      {/* Orange header bar */}
+      <div style={{ background: '#ff6600', padding: '4px 8px', display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div style={{ background: '#fff', width: 20, height: 20, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 900, fontSize: 14, color: '#ff6600', borderRadius: 2 }}>Y</div>
+        <span style={{ color: '#000', fontWeight: 700, fontSize: 13 }}>Hacker News</span>
+        <span style={{ color: '#000', opacity: 0.6, fontSize: 13 }}>|</span>
+        {['new', 'past', 'ask', 'show', 'submit'].map(l => (
+          <span key={l} style={{ color: '#000', fontSize: 12, cursor: 'pointer', opacity: 0.85 }}>{l}</span>
+        ))}
+      </div>
+      {/* Body */}
+      <div style={{ background: '#f6f6ef', padding: '8px 4px' }}>
+        <div style={{ display: 'flex', gap: 4, padding: '4px 8px' }}>
+          <div style={{ color: '#999', fontSize: 16, lineHeight: 1, paddingTop: 2 }}>▲</div>
+          <div>
+            <div style={{ fontSize: 14, color: '#000', lineHeight: '20px' }}>
+              {p.title}{' '}
+              <span style={{ color: '#828282', fontSize: 12 }}>(flowdesk.ai)</span>
+            </div>
+            <div style={{ fontSize: 12, color: '#828282', marginTop: 3 }}>
+              {p.points} points by{' '}
+              <span style={{ color: '#000', cursor: 'pointer' }}>{p.submitter}</span>{' '}
+              {p.time} | hide |{' '}
+              <button onClick={() => setOpen(v => !v)} style={{ background: 'none', border: 'none', color: '#828282', cursor: 'pointer', fontSize: 12, padding: 0 }}>
+                {p.comments} comments {open ? '▲' : '▼'}
+              </button>
+            </div>
+            <p style={{ fontSize: 13, color: '#000', marginTop: 6, lineHeight: '18px' }}>{post?.text ?? p.text}</p>
+          </div>
+        </div>
+      </div>
+      {/* Comments */}
+      {open && (
+        <div style={{ background: '#f6f6ef', borderTop: '1px solid #e6e6da' }}>
+          {SIMULATED_COMMENTS.hn.map((c, i) => (
+            <div key={c.id} style={{ padding: '10px 12px', borderBottom: '1px solid #e6e6da', background: c.isFounder ? '#fff9e6' : i % 2 === 0 ? '#f6f6ef' : '#fafaf4' }}>
+              <div style={{ fontSize: 11, color: '#828282', marginBottom: 4 }}>
+                <span style={{ cursor: 'pointer', color: '#aaa', marginRight: 4 }}>▲</span>
+                <span style={{ fontWeight: 700, color: c.isFounder ? '#ff6600' : '#000', cursor: 'pointer' }}>{c.author}</span>
+                {c.isFounder && <span style={{ color: '#ff6600' }}> (author)</span>}
+                {' '}{c.points} points{' '}{c.timeAgo}
+                {' | '}<span style={{ cursor: 'pointer' }}>hide</span>
+                {' | '}<span style={{ cursor: 'pointer' }}>reply</span>
+              </div>
+              <p style={{ fontSize: 13, color: '#000', lineHeight: '18px', margin: 0 }}>{c.text}</p>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ─── Product Hunt Card ────────────────────────────────────────────────────────
 
 function PHCard({ post }: { post: SocialPost | null }) {
   const p = SOCIAL_POSTS.ph
   const [open, setOpen] = useState(false)
-  const comments = SIMULATED_COMMENTS.ph
+  const S = { fontFamily: '-apple-system,"Segoe UI",Roboto,sans-serif' }
   return (
-    <div>
-      <div className={`border border-border p-6 space-y-4 ${open ? 'rounded-t-2xl' : 'rounded-2xl'}`} style={{ background: '#1a0a00', borderBottom: open ? '1px solid rgba(255,97,53,0.12)' : undefined }}>
-        <div className="flex items-start gap-4">
-          <div className="shrink-0 flex flex-col items-center gap-1 border border-coral/40 rounded-xl px-3 py-2">
-            <span className="text-coral text-sm">▲</span>
-            <span className="font-mono text-xs text-coral font-bold">{p.upvotes}</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-10 h-10 rounded-xl bg-coral flex items-center justify-center text-void font-display text-lg">{p.name[0]}</div>
-            <div><div className="text-snow font-medium text-sm">{p.name}</div><div className="text-muted font-mono text-xs">{p.tagline}</div></div>
-          </div>
-        </div>
-        <p className="text-snow/80 text-sm leading-relaxed whitespace-pre-line">{post?.text ?? p.description}</p>
-        <div className="flex items-center justify-between">
-          <div className="inline-flex items-center gap-2 bg-coral/10 border border-coral/20 rounded-full px-3 py-1">
-            <span className="text-coral text-xs">🔸</span>
-            <span className="font-mono text-xs text-coral">{p.badge}</span>
-          </div>
-          <button onClick={() => setOpen(v => !v)} className="font-mono text-xs text-muted hover:text-snow transition-colors">
-            💬 {comments.length} comments {open ? '▲' : '▼'}
+    <div style={{ ...S, borderRadius: 12, overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.08), 0 0 0 1px rgba(0,0,0,0.06)' }}>
+      {/* Card */}
+      <div style={{ background: '#fff', padding: '20px' }}>
+        <div style={{ display: 'flex', gap: 14, alignItems: 'flex-start' }}>
+          {/* Upvote */}
+          <button style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', border: '1px solid #e0e0e0', borderRadius: 10, padding: '8px 14px', cursor: 'pointer', background: '#fff', minWidth: 56, gap: 2 }}>
+            <span style={{ color: '#da552f', fontSize: 16 }}>▲</span>
+            <span style={{ color: '#da552f', fontWeight: 700, fontSize: 15 }}>{p.upvotes}</span>
           </button>
-        </div>
-      </div>
-      {open && (
-        <div className="border border-t-0 border-border rounded-b-2xl overflow-hidden divide-y divide-white/[0.04]" style={{ background: '#120700' }}>
-          {comments.map(c => (
-            <div key={c.id} className="px-4 py-3 flex gap-3"
-              style={{ background: c.isFounder ? 'rgba(255,97,53,0.06)' : 'transparent' }}>
-              <div className="w-8 h-8 rounded-full shrink-0 flex items-center justify-center font-mono text-xs font-bold"
-                style={{ background: c.isFounder ? '#FF615420' : '#ffffff0e', color: c.isFounder ? '#FF6154' : '#6E6E84' }}>
-                {c.author[0]}
-              </div>
-              <div className="flex-1">
-                <div className="flex items-center gap-2 flex-wrap mb-1">
-                  <span className="text-snow text-xs font-medium">{c.author}</span>
-                  {c.badge && (
-                    <span className="font-mono text-xs px-1.5 py-0.5 rounded-full border"
-                      style={{ borderColor: c.badge === 'Maker' ? '#FF615440' : '#FF610040', color: c.badge === 'Maker' ? '#FF6154' : '#FF6100', fontSize: '8px' }}>
-                      {c.badge}
-                    </span>
-                  )}
-                  <span className="text-dim font-mono text-xs ml-auto">{c.timeAgo}</span>
-                </div>
-                <p className="text-snow/75 text-xs leading-relaxed">{c.text}</p>
-                <div className="mt-1.5"><span className="text-dim font-mono text-xs">▲ {c.likes?.toLocaleString()}</span></div>
+          {/* Content */}
+          <div style={{ flex: 1 }}>
+            <div style={{ display: 'flex', gap: 12, marginBottom: 10 }}>
+              <div style={{ width: 52, height: 52, borderRadius: 12, background: '#FF6154', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 24, fontWeight: 700, flexShrink: 0 }}>F</div>
+              <div>
+                <div style={{ color: '#1a1a1a', fontWeight: 700, fontSize: 16 }}>{p.name}</div>
+                <div style={{ color: '#4b4b4b', fontSize: 14 }}>{p.tagline}</div>
               </div>
             </div>
-          ))}
-        </div>
-      )}
-    </div>
-  )
-}
-
-function InstagramCard({ post }: { post: SocialPost | null }) {
-  const [open, setOpen] = useState(false)
-  const comments = SIMULATED_COMMENTS.instagram
-  const parts = (post?.text ?? '').split('\n\n')
-  const caption = parts[0] || 'Building the future of support infrastructure. 80% of tickets resolved before a human sees them. 🚀'
-  const hashtags = parts.slice(1).join(' ') || '#saas #ai #startups #techfounder #yc #buildinpublic'
-  return (
-    <div>
-      <div className={`border border-border p-6 space-y-4 ${open ? 'rounded-t-2xl' : 'rounded-2xl'}`} style={{ background: '#1a1a2e', borderBottom: open ? '1px solid rgba(255,255,255,0.05)' : undefined }}>
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full flex items-center justify-center text-white font-display text-lg shrink-0"
-            style={{ background: 'linear-gradient(135deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888)' }}>
-            {COMPANY.name[0]}
+            <p style={{ color: '#4b4b4b', fontSize: 14, lineHeight: '20px', whiteSpace: 'pre-line', marginBottom: 12 }}>{post?.text ?? p.description}</p>
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 12 }}>
+              {['B2B SaaS', 'Artificial Intelligence', 'Customer Support', 'Productivity'].map(tag => (
+                <span key={tag} style={{ background: '#f2f2f2', color: '#555', fontSize: 12, padding: '3px 10px', borderRadius: 999 }}>{tag}</span>
+              ))}
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderTop: '1px solid #f0f0f0', paddingTop: 12 }}>
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: '#fff8f0', border: '1px solid #ffd0a0', borderRadius: 999, padding: '4px 12px' }}>
+                <span style={{ fontSize: 13 }}>🏆</span>
+                <span style={{ color: '#da552f', fontSize: 12, fontWeight: 600 }}>{p.badge}</span>
+              </div>
+              <button onClick={() => setOpen(v => !v)} style={{ background: 'none', border: 'none', color: '#888', fontSize: 13, cursor: 'pointer' }}>
+                💬 {SIMULATED_COMMENTS.ph.length} comments {open ? '▲' : '▼'}
+              </button>
+            </div>
           </div>
-          <div>
-            <div className="text-snow text-sm font-medium">{COMPANY.name.toLowerCase().replace(/\s+/g, '.')}</div>
-            <div className="text-dim font-mono text-xs">just now</div>
-          </div>
-        </div>
-        <p className="text-snow/90 text-sm leading-relaxed whitespace-pre-line">{caption}</p>
-        {hashtags && <p className="text-blue-400/70 text-xs leading-relaxed">{hashtags}</p>}
-        <div className="flex items-center gap-5 pt-2 border-t border-white/5">
-          <span className="text-muted font-mono text-xs">❤️ 2,847</span>
-          <button onClick={() => setOpen(v => !v)} className="font-mono text-xs text-muted hover:text-snow transition-colors">
-            💬 {comments.length} comments {open ? '▲' : '▼'}
-          </button>
-          <span className="text-muted font-mono text-xs">✈️ 412</span>
         </div>
       </div>
+      {/* Comments */}
       {open && (
-        <div className="border border-t-0 border-border rounded-b-2xl overflow-hidden divide-y divide-white/[0.04]" style={{ background: '#141420' }}>
-          {comments.map(c => (
-            <div key={c.id} className="px-4 py-3 flex gap-3">
-              <div className="w-7 h-7 rounded-full shrink-0 flex items-center justify-center text-xs font-mono font-bold"
-                style={{ background: 'linear-gradient(135deg, #f09433, #bc1888)', color: '#fff', fontSize: '10px' }}>
-                {c.author[0].toUpperCase()}
-              </div>
-              <div className="flex-1">
-                <div className="flex items-baseline gap-2">
-                  <span className="text-snow text-xs font-medium">{c.author}</span>
-                  <span className="text-dim font-mono text-xs ml-auto">{c.timeAgo}</span>
+        <div style={{ background: '#fafafa', borderTop: '1px solid #f0f0f0' }}>
+          {SIMULATED_COMMENTS.ph.map(c => (
+            <div key={c.id} style={{ padding: '14px 20px', display: 'flex', gap: 12, borderBottom: '1px solid #f0f0f0', background: c.isFounder ? '#fff9f6' : '#fff' }}>
+              <div style={{ width: 36, height: 36, borderRadius: '50%', background: c.isFounder ? '#FF6154' : '#ccc', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 14, fontWeight: 700, flexShrink: 0 }}>{c.author[0]}</div>
+              <div style={{ flex: 1 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4, flexWrap: 'wrap' }}>
+                  <span style={{ color: '#1a1a1a', fontWeight: 600, fontSize: 14 }}>{c.author}</span>
+                  {c.badge && (
+                    <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 999, fontWeight: 600, background: c.badge === 'Maker' ? '#e8f4fd' : '#fff0e8', color: c.badge === 'Maker' ? '#0A66C2' : '#da552f' }}>{c.badge}</span>
+                  )}
+                  <span style={{ color: '#aaa', fontSize: 12, marginLeft: 'auto' }}>{c.timeAgo}</span>
                 </div>
-                <p className="text-snow/75 text-xs mt-0.5 leading-relaxed">{c.text}</p>
-                <span className="text-dim font-mono text-xs mt-1 block">❤️ {c.likes?.toLocaleString()}</span>
+                <p style={{ color: '#4b4b4b', fontSize: 14, lineHeight: '20px' }}>{c.text}</p>
+                <div style={{ marginTop: 6 }}>
+                  <span style={{ color: '#da552f', fontSize: 13 }}>▲ {c.likes}</span>
+                </div>
               </div>
             </div>
           ))}

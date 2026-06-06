@@ -147,6 +147,12 @@ async function createSessionHandler(req, res) {
   const startup = await getStartup(body.startupId);
   if (!startup) return sendJson(res, 404, { error: "Startup not found" });
 
+  // TODO (Advaita): enrich startup.founderVoiceSample from InsForge agent_personalities before
+  // calling generatePitchPackage so the pitch reflects the stored founder persona. Example:
+  //   const personalities = await getAgentPersonalities();
+  //   const founderPersona = personalities.find(p => p.role === "founder");
+  //   if (founderPersona && !startup.founderVoiceSample) startup.founderVoiceSample = founderPersona.persona;
+
   const sessionId = id("session");
   const session = await createSession({
     id: sessionId,
@@ -279,6 +285,13 @@ async function socialPostsHandler(_req, res, sessionId) {
     toStartupContext(session.startup),
     session.generatedPitch
   );
+
+  // TODO (doniv): for each platform's posts, generate 3-5 simulated user comments using Gemini.
+  // Each post already has { text, hook, imageData }. Add a `comments` array to each post:
+  //   PostComment { personaType, displayName, text, sentiment: "positive"|"neutral"|"skeptical", likes }
+  // Persona types: early_adopter, industry_skeptic, competitor_user, technical_user, casual_observer
+  // Use GEMINI_API_KEY (already in .env) — no extra setup needed.
+
   sendJson(res, 200, posts);
 }
 
