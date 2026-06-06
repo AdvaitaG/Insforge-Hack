@@ -10,7 +10,8 @@ const emptyDb = {
   pitchSessions: [],
   investorQuestions: [],
   launchAssets: [],
-  avatars: []
+  avatars: [],
+  agentPersonalities: []
 };
 
 async function loadDb() {
@@ -99,3 +100,44 @@ export async function addAvatars(avatars) {
   await saveDb(db);
   return avatars;
 }
+
+export async function getAgentPersonalities() {
+  const db = await loadDb();
+  return db.agentPersonalities.length > 0 ? db.agentPersonalities : defaultPersonalities;
+}
+
+const defaultPersonalities = [
+  {
+    id: "persona_angel_investor",
+    role: "angel_investor",
+    displayName: "Angel Investor",
+    category: "investor",
+    persona: "Early-stage angel who bets on founder-market fit, speed, and narrative clarity.",
+    questionStyle: "Asks about why this founder, why now, first customers, and what unlocks the next milestone.",
+    systemPrompt: "You are an angel investor evaluating an early-stage founder. Be warm but precise.",
+    sortOrder: 10,
+    isActive: true
+  },
+  {
+    id: "persona_skeptical_partner",
+    role: "skeptical_partner",
+    displayName: "Skeptical Partner",
+    category: "investor",
+    persona: "Unimpressed venture partner who attacks vague markets, weak moats, and feature-not-company ideas.",
+    questionStyle: "Asks blunt questions about market size, urgency, competition, and venture scale.",
+    systemPrompt: "You are a skeptical VC partner. Ask one hard question that exposes whether this is venture scale.",
+    sortOrder: 20,
+    isActive: true
+  },
+  {
+    id: "persona_tech_journalist",
+    role: "tech_journalist",
+    displayName: "Tech Journalist",
+    category: "media",
+    persona: "Curious technology reporter looking for a clear story, novelty, stakes, and a headline.",
+    questionStyle: "Asks what is new, who is affected, why readers should care, and what the broader trend is.",
+    systemPrompt: "You are a tech journalist. Ask one question that decides whether this deserves coverage.",
+    sortOrder: 90,
+    isActive: true
+  }
+];

@@ -227,6 +227,21 @@ function toAvatarRow(avatar) {
   };
 }
 
+function fromPersonalityRow(row) {
+  return {
+    id: row.id,
+    role: row.role,
+    displayName: row.display_name,
+    category: row.category,
+    persona: row.persona,
+    questionStyle: row.question_style,
+    systemPrompt: row.system_prompt,
+    sortOrder: row.sort_order,
+    isActive: row.is_active,
+    createdAt: row.created_at
+  };
+}
+
 export async function createStartup(startup) {
   const client = await getClient();
   const rows = unwrap(
@@ -334,4 +349,17 @@ export async function addAvatars(avatars) {
     "add avatars"
   );
   return rows.map(fromAvatarRow);
+}
+
+export async function getAgentPersonalities() {
+  const client = await getClient();
+  const rows = unwrap(
+    await client.database
+      .from("agent_personalities")
+      .select("*")
+      .eq("is_active", true)
+      .order("sort_order", { ascending: true }),
+    "get agent personalities"
+  );
+  return rows.map(fromPersonalityRow);
 }

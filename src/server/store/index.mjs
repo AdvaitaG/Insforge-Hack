@@ -31,3 +31,6 @@ export const addLaunchAssets = useInsForge
   ? insforgeStore.addLaunchAssets
   : jsonStore.addLaunchAssets;
 export const addAvatars = useInsForge ? insforgeStore.addAvatars : jsonStore.addAvatars;
+export const getAgentPersonalities = useInsForge
+  ? insforgeStore.getAgentPersonalities
+  : jsonStore.getAgentPersonalities;

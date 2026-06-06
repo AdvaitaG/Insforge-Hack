@@ -5,6 +5,7 @@ import {
   addQuestions,
   createSession,
   createStartup,
+  getAgentPersonalities,
   getSession,
   getStartup,
   updateQuestionAnswer,
@@ -256,6 +257,9 @@ async function route(req, res) {
   if (req.method === "OPTIONS") return sendJson(res, 204, {});
   if (req.method === "GET" && url.pathname === "/health") {
     return sendJson(res, 200, { ok: true, service: "yc-demo-day-api" });
+  }
+  if (req.method === "GET" && url.pathname === "/api/agent-personalities") {
+    return sendJson(res, 200, { personalities: await getAgentPersonalities() });
   }
   if (req.method === "POST" && url.pathname === "/api/startups") {
     return createStartupHandler(req, res);

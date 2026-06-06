@@ -58,3 +58,16 @@ create table if not exists avatars (
   persona text not null,
   created_at timestamptz not null default now()
 );
+
+create table if not exists agent_personalities (
+  id text primary key,
+  role text not null,
+  display_name text not null,
+  category text not null,
+  persona text not null,
+  question_style text not null,
+  system_prompt text not null,
+  sort_order integer not null default 0,
+  is_active boolean not null default true,
+  created_at timestamptz not null default now()
+);
