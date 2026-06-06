@@ -1,259 +1,118 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { StartupContext } from '@/lib/types'
-import { MOCK_STARTUP } from '@/lib/mockData'
-
-const EMPTY_FORM: StartupContext = {
-  companyName: '',
-  description: '',
-  targetCustomer: '',
-  problem: '',
-  solution: '',
-  whyNow: '',
-  traction: '',
-  businessModel: '',
-  competitors: '',
-  productUrl: '',
-  repoUrl: '',
-  founderVoiceSample: '',
-}
 
 export default function IntakePage() {
   const router = useRouter()
-  const [form, setForm] = useState<StartupContext>(EMPTY_FORM)
-  const [loading, setLoading] = useState(false)
+  const [repo, setRepo] = useState('')
+  const [focused, setFocused] = useState(false)
+  const [stars, setStars] = useState<{ x: number; y: number; size: number; opacity: number; duration: number; delay: number }[]>([])
 
-  function update(field: keyof StartupContext, value: string) {
-    setForm(f => ({ ...f, [field]: value }))
-  }
+  useEffect(() => {
+    setStars(
+      Array.from({ length: 120 }, (_, i) => ({
+        x: Math.random() * 100,
+        y: Math.random() * 100,
+        size: Math.random() * 1.5 + 0.5,
+        opacity: Math.random() * 0.5 + 0.1,
+        duration: Math.random() * 4 + 2,
+        delay: Math.random() * 6,
+      }))
+    )
+  }, [])
 
-  function loadSample() {
-    setForm({
-      companyName: MOCK_STARTUP.companyName,
-      description: MOCK_STARTUP.description,
-      targetCustomer: MOCK_STARTUP.targetCustomer,
-      problem: MOCK_STARTUP.problem,
-      solution: MOCK_STARTUP.solution,
-      whyNow: MOCK_STARTUP.whyNow,
-      traction: MOCK_STARTUP.traction,
-      businessModel: MOCK_STARTUP.businessModel,
-      competitors: MOCK_STARTUP.competitors,
-      productUrl: '',
-      repoUrl: '',
-      founderVoiceSample: '',
-    })
-  }
-
-  async function handleSubmit(e: React.FormEvent) {
+  function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    setLoading(true)
-    try {
-      const res = await fetch('/api/startups', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form),
-      })
-      const startup = await res.json()
-
-      const sessionRes = await fetch('/api/sessions', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ startupId: startup.id }),
-      })
-      const session = await sessionRes.json()
-      router.push(`/session/${session.id}`)
-    } catch {
-      router.push('/session/session_demo')
-    }
+    if (!repo.trim()) return
+    router.push(`/loading?repo=${encodeURIComponent(repo.trim())}`)
   }
 
   return (
-    <div className="min-h-screen bg-void">
-      <div className="max-w-3xl mx-auto px-6 py-16">
-        {/* Header */}
-        <div className="mb-12">
-          <div className="font-display text-amber text-sm tracking-widest mb-4">PITCHMIRROR</div>
-          <h1 className="font-display text-6xl text-snow leading-none mb-4">
-            YOUR DEMO DAY<br />
-            <span className="text-amber">STARTS HERE</span>
-          </h1>
-          <p className="text-muted text-lg">
-            Enter your startup context. We&apos;ll generate your pitch, build your investor room, and stress-test it live.
-          </p>
-          <button
-            onClick={loadSample}
-            className="mt-4 text-xs font-mono text-amber-dim border border-amber-dim/30 px-3 py-1.5 rounded hover:border-amber hover:text-amber transition-colors"
-          >
-            ↗ Load sample startup
-          </button>
+    <div className="min-h-screen bg-void flex flex-col items-center justify-center relative overflow-hidden select-none">
+      {/* Star field */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        {stars.map((s, i) => (
+          <div
+            key={i}
+            className="absolute rounded-full bg-snow"
+            style={{
+              left: `${s.x}%`,
+              top: `${s.y}%`,
+              width: `${s.size}px`,
+              height: `${s.size}px`,
+              opacity: s.opacity,
+              animation: `twinkle ${s.duration}s ease-in-out ${s.delay}s infinite`,
+            }}
+          />
+        ))}
+      </div>
+
+      {/* Radial glow behind content */}
+      <div
+        className="absolute inset-0 pointer-events-none"
+        style={{
+          background: 'radial-gradient(ellipse 60% 50% at 50% 50%, rgba(240,165,0,0.04) 0%, transparent 70%)',
+        }}
+      />
+
+      {/* Content */}
+      <div className="relative z-10 flex flex-col items-center text-center px-6 max-w-2xl w-full" style={{ animation: 'fade-in 1.2s ease-out forwards' }}>
+        <div className="font-mono text-xs text-muted tracking-[0.3em] uppercase mb-6 opacity-60">
+          Y Combinator Simulator
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-10">
-          {/* Section 1 */}
-          <section>
-            <h2 className="font-display text-2xl text-muted tracking-widest mb-5">01 — YOUR STARTUP</h2>
-            <div className="space-y-4">
-              <Field label="Company Name" required>
-                <input
-                  type="text"
-                  value={form.companyName}
-                  onChange={e => update('companyName', e.target.value)}
-                  placeholder="PitchMirror"
-                  required
-                  className="w-full bg-surface border border-border rounded px-4 py-3 text-snow placeholder:text-dim focus:border-amber transition-colors"
-                />
-              </Field>
-              <Field label="One-line description" required>
-                <input
-                  type="text"
-                  value={form.description}
-                  onChange={e => update('description', e.target.value)}
-                  placeholder="AI Demo Day simulator for founders"
-                  required
-                  className="w-full bg-surface border border-border rounded px-4 py-3 text-snow placeholder:text-dim focus:border-amber transition-colors"
-                />
-              </Field>
-              <Field label="Target customer" required>
-                <input
-                  type="text"
-                  value={form.targetCustomer}
-                  onChange={e => update('targetCustomer', e.target.value)}
-                  placeholder="Early-stage technical founders"
-                  required
-                  className="w-full bg-surface border border-border rounded px-4 py-3 text-snow placeholder:text-dim focus:border-amber transition-colors"
-                />
-              </Field>
-            </div>
-          </section>
+        <h1
+          className="font-display leading-none mb-4"
+          style={{ fontSize: 'clamp(80px, 18vw, 160px)' }}
+        >
+          <span className="text-snow">YC</span>
+          <span className="text-amber">SIM</span>
+        </h1>
 
-          {/* Section 2 */}
-          <section>
-            <h2 className="font-display text-2xl text-muted tracking-widest mb-5">02 — THE PITCH</h2>
-            <div className="space-y-4">
-              <Field label="Problem" required>
-                <textarea
-                  value={form.problem}
-                  onChange={e => update('problem', e.target.value)}
-                  placeholder="Founders don't get enough high-quality pitch practice before Demo Day"
-                  required
-                  rows={2}
-                  className="w-full bg-surface border border-border rounded px-4 py-3 text-snow placeholder:text-dim focus:border-amber transition-colors resize-none"
-                />
-              </Field>
-              <Field label="Solution" required>
-                <textarea
-                  value={form.solution}
-                  onChange={e => update('solution', e.target.value)}
-                  placeholder="AI investor replicas simulate Demo Day with live questions and feedback"
-                  required
-                  rows={2}
-                  className="w-full bg-surface border border-border rounded px-4 py-3 text-snow placeholder:text-dim focus:border-amber transition-colors resize-none"
-                />
-              </Field>
-              <Field label="Why now" required>
-                <textarea
-                  value={form.whyNow}
-                  onChange={e => update('whyNow', e.target.value)}
-                  placeholder="AI avatars and marketing generation are now good enough to feel real"
-                  required
-                  rows={2}
-                  className="w-full bg-surface border border-border rounded px-4 py-3 text-snow placeholder:text-dim focus:border-amber transition-colors resize-none"
-                />
-              </Field>
-            </div>
-          </section>
+        <p className="text-muted text-lg mb-12 max-w-sm leading-relaxed">
+          Paste your GitHub repo. We read your README, build your pitch, and put you in front of AI investors.
+        </p>
 
-          {/* Section 3 */}
-          <section>
-            <h2 className="font-display text-2xl text-muted tracking-widest mb-5">03 — BUSINESS</h2>
-            <div className="space-y-4">
-              <Field label="Traction">
-                <input
-                  type="text"
-                  value={form.traction}
-                  onChange={e => update('traction', e.target.value)}
-                  placeholder="100 beta users, $5k MRR, launched 3 weeks ago"
-                  className="w-full bg-surface border border-border rounded px-4 py-3 text-snow placeholder:text-dim focus:border-amber transition-colors"
-                />
-              </Field>
-              <Field label="Business model">
-                <input
-                  type="text"
-                  value={form.businessModel}
-                  onChange={e => update('businessModel', e.target.value)}
-                  placeholder="SaaS, $49/simulation or $199/month"
-                  className="w-full bg-surface border border-border rounded px-4 py-3 text-snow placeholder:text-dim focus:border-amber transition-colors"
-                />
-              </Field>
-              <Field label="Competitors">
-                <input
-                  type="text"
-                  value={form.competitors}
-                  onChange={e => update('competitors', e.target.value)}
-                  placeholder="Pitch deck tools, AI writing assistants"
-                  className="w-full bg-surface border border-border rounded px-4 py-3 text-snow placeholder:text-dim focus:border-amber transition-colors"
-                />
-              </Field>
-            </div>
-          </section>
-
-          {/* Section 4 */}
-          <section>
-            <h2 className="font-display text-2xl text-muted tracking-widest mb-2">04 — OPTIONAL CONTEXT</h2>
-            <p className="text-dim text-sm font-mono mb-5">Paste these to generate a sharper pitch</p>
-            <div className="space-y-4">
-              <Field label="Product URL">
-                <input
-                  type="url"
-                  value={form.productUrl}
-                  onChange={e => update('productUrl', e.target.value)}
-                  placeholder="https://yourproduct.com"
-                  className="w-full bg-surface border border-border rounded px-4 py-3 text-snow placeholder:text-dim focus:border-amber transition-colors"
-                />
-              </Field>
-              <Field label="GitHub repo URL">
-                <input
-                  type="url"
-                  value={form.repoUrl}
-                  onChange={e => update('repoUrl', e.target.value)}
-                  placeholder="https://github.com/you/repo"
-                  className="w-full bg-surface border border-border rounded px-4 py-3 text-snow placeholder:text-dim focus:border-amber transition-colors"
-                />
-              </Field>
-              <Field label="Founder voice sample">
-                <textarea
-                  value={form.founderVoiceSample}
-                  onChange={e => update('founderVoiceSample', e.target.value)}
-                  placeholder="Paste a few sentences you've written — a tweet, a blog post, a Slack message — so the pitch sounds like you"
-                  rows={3}
-                  className="w-full bg-surface border border-border rounded px-4 py-3 text-snow placeholder:text-dim focus:border-amber transition-colors resize-none"
-                />
-              </Field>
-            </div>
-          </section>
+        <form onSubmit={handleSubmit} className="w-full max-w-md space-y-4">
+          <div
+            className="flex items-center bg-surface rounded-2xl px-5 py-4 transition-all duration-300"
+            style={{
+              border: `1px solid ${focused ? '#F0A500' : '#1E1E2E'}`,
+              boxShadow: focused ? '0 0 0 1px rgba(240,165,0,0.15)' : 'none',
+            }}
+          >
+            <span className="text-dim font-mono text-sm shrink-0 mr-1">github.com /</span>
+            <input
+              type="text"
+              value={repo}
+              onChange={e => setRepo(e.target.value)}
+              onFocus={() => setFocused(true)}
+              onBlur={() => setFocused(false)}
+              placeholder="username/repo"
+              autoComplete="off"
+              spellCheck={false}
+              className="flex-1 bg-transparent text-snow placeholder:text-dim font-mono text-sm outline-none min-w-0"
+            />
+          </div>
 
           <button
             type="submit"
-            disabled={loading}
-            className="w-full bg-amber text-void font-display text-2xl tracking-widest py-5 rounded hover:bg-amber-bright transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={!repo.trim()}
+            className="w-full font-display text-2xl tracking-widest py-4 rounded-2xl transition-all duration-200 disabled:opacity-20 disabled:cursor-not-allowed"
+            style={{
+              background: repo.trim() ? '#F0A500' : '#1a1208',
+              color: repo.trim() ? '#060608' : '#7A5200',
+            }}
           >
-            {loading ? 'GENERATING YOUR PITCH ROOM...' : 'GENERATE DEMO DAY ROOM →'}
+            ANALYZE REPO →
           </button>
         </form>
-      </div>
-    </div>
-  )
-}
 
-function Field({ label, required, children }: { label: string; required?: boolean; children: React.ReactNode }) {
-  return (
-    <div>
-      <label className="block text-xs font-mono text-muted uppercase tracking-widest mb-2">
-        {label} {required && <span className="text-amber">*</span>}
-      </label>
-      {children}
+        <p className="font-mono text-xs text-dim mt-8 leading-relaxed">
+          Your README should include company name, problem, solution, and target customer
+        </p>
+      </div>
     </div>
   )
 }
