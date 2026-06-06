@@ -99,3 +99,13 @@ input:focus, textarea:focus { box-shadow: 0 0 0 1px #F0A500; }
   from { opacity: 0; transform: translateY(30px); filter: blur(4px); }
   to   { opacity: 1; transform: translateY(0); filter: blur(0); }
 }
+
+@keyframes bobble {
+  0%, 100% { transform: rotate(-4deg); }
+  50%       { transform: rotate(4deg); }
+}
+
+@keyframes bobble-fast {
+  0%, 100% { transform: rotate(-6deg); }
+  50%       { transform: rotate(6deg); }
+}
