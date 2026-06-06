@@ -16,6 +16,7 @@ import {
   generateFinalReport,
   generatePitchPackage
 } from "./services/memoirAdapter.mjs";
+import { createAvatar, speak } from "./services/replicasAdapter.mjs";
 import {
   assertRequired,
   id,
@@ -220,6 +221,35 @@ async function finalizeHandler(_req, res, sessionId) {
   });
 }
 
+async function createAvatarHandler(req, res) {
+  const body = await readJson(req);
+  assertRequired(body, ["role", "displayName", "persona"]);
+
+  try {
+    const avatarSession = await createAvatar({
+      role: body.role,
+      displayName: body.displayName,
+      persona: body.persona,
+      script: body.script
+    });
+    sendJson(res, 201, avatarSession);
+  } catch (error) {
+    sendJson(res, 500, { error: error.message || "Failed to create avatar" });
+  }
+}
+
+async function speakHandler(req, res, avatarId) {
+  const body = await readJson(req);
+  assertRequired(body, ["text"]);
+
+  try {
+    const updatedSession = await speak(avatarId, body.text);
+    sendJson(res, 200, updatedSession);
+  } catch (error) {
+    sendJson(res, 500, { error: error.message || "Failed to make avatar speak" });
+  }
+}
+
 async function route(req, res) {
   const url = new URL(req.url, `http://${req.headers.host}`);
 
@@ -249,6 +279,15 @@ async function route(req, res) {
   const finalizeMatch = url.pathname.match(/^\/api\/sessions\/([^/]+)\/finalize$/);
   if (req.method === "POST" && finalizeMatch) {
     return finalizeHandler(req, res, finalizeMatch[1]);
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/avatars/create") {
+    return createAvatarHandler(req, res);
+  }
+
+  const speakMatch = url.pathname.match(/^\/api\/avatars\/([^/]+)\/speak$/);
+  if (req.method === "POST" && speakMatch) {
+    return speakHandler(req, res, speakMatch[1]);
   }
 
   return notFound(res);
