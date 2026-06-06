@@ -7,16 +7,24 @@ import { parseReadmeToStartup } from '@/lib/github'
 const STEPS = [
   { id: 'connect', label: 'Connecting to GitHub' },
   { id: 'readme', label: 'Reading README' },
-  { id: 'codebase', label: 'Creating startup profile' },
-  { id: 'pitch', label: 'Generating pitch narrative' },
+  { id: 'startup', label: 'Creating startup profile' },
+  { id: 'pitch', label: 'Generating pitch with Gemini' },
   { id: 'room', label: 'Building investor room' },
 ]
+
+const STEP_DELAY = 1200
+const FALLBACK_SESSION = 'session_demo'
+
+function toTitleCase(str: string) {
+  return str.replace(/[-_]/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
+}
 
 function LoadingContent() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const repo = searchParams.get('repo') ?? ''
-  const companyName = repo.split('/')[1] ?? repo
+  const [owner, repoName] = repo.includes('/') ? repo.split('/') : ['', repo]
+  const companyName = toTitleCase(repoName || repo)
 
   const [currentStep, setCurrentStep] = useState(0)
   const [completedSteps, setCompletedSteps] = useState<Set<number>>(new Set())
@@ -44,49 +52,68 @@ function LoadingContent() {
     if (started.current || !repo) return
     started.current = true
 
+    async function runWithFallback() {
+      STEPS.forEach((_, i) => {
+        setTimeout(() => {
+          setCurrentStep(i)
+          setTimeout(() => setCompletedSteps((prev) => new Set([...prev, i])), 600)
+        }, i * STEP_DELAY)
+      })
+      setTimeout(() => {
+        setDone(true)
+        setTimeout(() => router.push(`/session/${FALLBACK_SESSION}`), 1200)
+      }, STEPS.length * STEP_DELAY + 600)
+    }
+
     async function run() {
       try {
         setCurrentStep(0)
         const readmeRes = await fetch(`/api/github/readme?repo=${encodeURIComponent(repo)}`)
         const readmeData = await readmeRes.json()
         if (!readmeRes.ok) throw new Error(readmeData.error ?? 'Failed to fetch README')
-        setCompletedSteps((prev) => new Set(Array.from(prev).concat(0)))
+        setCompletedSteps((prev) => new Set([...prev, 0]))
 
         setCurrentStep(1)
         const startupPayload = parseReadmeToStartup(readmeData.readme, repo)
-        setCompletedSteps((prev) => new Set(Array.from(prev).concat(1)))
+        setCompletedSteps((prev) => new Set([...prev, 1]))
 
         setCurrentStep(2)
         const startupRes = await fetch('/api/startups', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(startupPayload),
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            ...startupPayload,
+            companyName: startupPayload.companyName || companyName,
+            founderVoiceSample: readmeData.readme.slice(0, 4000),
+          }),
         })
         const startup = await startupRes.json()
         if (!startupRes.ok) throw new Error(startup.error ?? 'Failed to create startup')
-        setCompletedSteps((prev) => new Set(Array.from(prev).concat(2)))
+        setCompletedSteps((prev) => new Set([...prev, 2]))
 
         setCurrentStep(3)
         const sessionRes = await fetch('/api/sessions', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'content-type': 'application/json' },
           body: JSON.stringify({ startupId: startup.id }),
         })
         const session = await sessionRes.json()
         if (!sessionRes.ok) throw new Error(session.error ?? 'Failed to generate pitch')
-        setCompletedSteps((prev) => new Set(Array.from(prev).concat(3)))
+        setCompletedSteps((prev) => new Set([...prev, 3]))
 
         setCurrentStep(4)
-        setCompletedSteps((prev) => new Set(Array.from(prev).concat(4)))
+        await new Promise((r) => setTimeout(r, 800))
+        setCompletedSteps((prev) => new Set([...prev, 4]))
         setDone(true)
-        setTimeout(() => router.push(`/session/${session.id}`), 1600)
+        setTimeout(() => router.push(`/session/${session.id}`), 1200)
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Something went wrong')
+        await runWithFallback()
       }
     }
 
     run()
-  }, [repo, router])
+  }, [router, repo, companyName])
 
   const progress = (completedSteps.size / STEPS.length) * 100
 
@@ -123,16 +150,10 @@ function LoadingContent() {
       </div>
 
       <div className="relative z-10 flex-1 flex flex-col items-center justify-center px-8">
-        {error ? (
+        {error && done ? (
           <div className="text-center space-y-4 max-w-md">
-            <div className="font-display text-3xl text-live">FAILED</div>
-            <p className="font-mono text-sm text-muted">{error}</p>
-            <button
-              onClick={() => router.push('/')}
-              className="font-mono text-sm text-amber border border-amber/30 px-4 py-2 rounded hover:border-amber transition-colors"
-            >
-              ← Try again
-            </button>
+            <div className="font-mono text-xs text-live">{error}</div>
+            <div className="font-mono text-xs text-dim">Falling back to demo session...</div>
           </div>
         ) : !done ? (
           <div className="w-full max-w-md space-y-10">
@@ -191,7 +212,7 @@ function LoadingContent() {
                           className="font-mono text-xs text-amber/50"
                           style={{ animation: 'fade-in 0.5s ease-out forwards' }}
                         >
-                          found: {companyName}
+                          {companyName}
                         </span>
                       )}
                     </div>

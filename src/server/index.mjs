@@ -215,12 +215,18 @@ async function answerHandler(req, res, sessionId) {
   const question = session.questions.find((item) => item.id === body.questionId);
   if (!question) return sendJson(res, 404, { error: "Question not found" });
 
+  const personalities = await getAgentPersonalities().catch(() => []);
+  const personality = personalities.find((p) => p.role === question.investorType);
+
   const evaluation = await evaluateAnswer({
     context: toStartupContext(session.startup),
     pitch: session.generatedPitch,
     investorType: question.investorType,
     question: question.question,
-    answer: normalizeText(body.answer)
+    answer: normalizeText(body.answer),
+    investorPersona: personality
+      ? { systemPrompt: personality.systemPrompt, persona: personality.persona, questionStyle: personality.questionStyle }
+      : null
   });
 
   const updated = await updateQuestionAnswer(question.id, {
@@ -301,11 +307,13 @@ async function investorResponseHandler(req, res) {
 
   let context = {};
   if (body.sessionId) {
-    const session = await getSession(body.sessionId);
+    const session = await getSession(body.sessionId).catch(() => null);
     if (session?.startup) context = toStartupContext(session.startup);
   } else if (body.context) {
     context = body.context;
   }
+
+  console.log(`[investor-response] investor=${body.investor?.name} message="${body.message?.slice(0, 60)}"`);
 
   const response = await generateInvestorResponse({
     context,
@@ -314,6 +322,7 @@ async function investorResponseHandler(req, res) {
     fallbackText: normalizeText(body.fallbackText)
   });
 
+  console.log(`[investor-response] reply="${response.text?.slice(0, 80)}"`);
   sendJson(res, 200, response);
 }
 
@@ -346,8 +355,15 @@ async function speakHandler(req, res, avatarId) {
   }
 }
 
+function setCors(res) {
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+}
+
 async function route(req, res) {
   const url = new URL(req.url, `http://${req.headers.host}`);
+  setCors(res);
 
   if (req.method === "OPTIONS") return sendJson(res, 204, {});
   if (req.method === "GET" && url.pathname === "/health") {
