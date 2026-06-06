@@ -4,25 +4,45 @@ import { Suspense, useEffect, useRef, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 
 const STEPS = [
-  { id: 'connect',  label: 'Connecting to GitHub',      detail: null },
-  { id: 'readme',   label: 'Reading README',             detail: null },
-  { id: 'codebase', label: 'Parsing codebase',           detail: null },
-  { id: 'pitch',    label: 'Generating pitch narrative', detail: null },
-  { id: 'room',     label: 'Building investor room',     detail: null },
+  { id: 'connect',  label: 'Connecting to GitHub' },
+  { id: 'readme',   label: 'Reading README' },
+  { id: 'startup',  label: 'Creating startup profile' },
+  { id: 'pitch',    label: 'Generating pitch with Gemini' },
+  { id: 'room',     label: 'Building investor room' },
 ]
 
-const STEP_DELAY = 1500 // ms between steps
-const COMPLETE_DELAY = 1100 // ms after step starts to mark complete
+const STEP_DELAY = 1200
+
+function toTitleCase(str: string) {
+  return str.replace(/[-_]/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+}
+
+async function fetchGitHubReadme(owner: string, repo: string): Promise<string> {
+  const res = await fetch(`https://api.github.com/repos/${owner}/${repo}/readme`, {
+    headers: { Accept: 'application/vnd.github.v3+json' },
+  })
+  if (!res.ok) return ''
+  const data = await res.json()
+  return atob(data.content.replace(/\n/g, ''))
+}
+
+async function fetchGitHubRepo(owner: string, repo: string): Promise<{ description: string }> {
+  const res = await fetch(`https://api.github.com/repos/${owner}/${repo}`)
+  if (!res.ok) return { description: '' }
+  return res.json()
+}
 
 function LoadingContent() {
   const searchParams = useSearchParams()
   const router = useRouter()
-  const repo = searchParams.get('repo') ?? 'your/repo'
-  const companyName = repo.split('/')[1] ?? repo
+  const repo = searchParams.get('repo') ?? ''
+  const [owner, repoName] = repo.includes('/') ? repo.split('/') : ['', repo]
+  const companyName = toTitleCase(repoName || repo)
 
   const [currentStep, setCurrentStep] = useState(0)
   const [completedSteps, setCompletedSteps] = useState<Set<number>>(new Set())
   const [done, setDone] = useState(false)
+  const [waiting, setWaiting] = useState(false)
   const [stars, setStars] = useState<{ x: number; y: number; size: number; opacity: number; dur: number; delay: number }[]>([])
   const started = useRef(false)
 
@@ -43,21 +63,81 @@ function LoadingContent() {
     if (started.current) return
     started.current = true
 
-    STEPS.forEach((_, i) => {
-      setTimeout(() => setCurrentStep(i), i * STEP_DELAY)
-      setTimeout(() => setCompletedSteps(prev => new Set(Array.from(prev).concat(i))), i * STEP_DELAY + COMPLETE_DELAY)
-    })
+    const FALLBACK_SESSION = 'session_demo'
 
-    const doneAt = STEPS.length * STEP_DELAY
-    setTimeout(() => setDone(true), doneAt)
-    setTimeout(() => router.push('/dashboard/session_demo'), doneAt + 1800)
-  }, [router])
+    async function run() {
+      try {
+        // Step 0: connect to GitHub
+        setCurrentStep(0)
+        const [repoData, readme] = await Promise.all([
+          fetchGitHubRepo(owner, repoName),
+          fetchGitHubReadme(owner, repoName),
+        ])
+        setCompletedSteps(prev => new Set([...prev, 0]))
+
+        // Step 1: read README
+        setCurrentStep(1)
+        await new Promise(r => setTimeout(r, STEP_DELAY))
+        setCompletedSteps(prev => new Set([...prev, 1]))
+
+        // Step 2: create startup
+        setCurrentStep(2)
+        const startupRes = await fetch('/api/startups', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            companyName,
+            description: repoData.description || `${companyName} — built from ${repo}`,
+            targetCustomer: 'Early-stage founders and builders',
+            problem: `Teams building ${companyName} lack efficient tooling`,
+            solution: `${companyName} solves this with a focused, well-crafted product`,
+            whyNow: 'The tooling and AI ecosystem have matured to make this viable',
+            repoUrl: `https://github.com/${repo}`,
+            founderVoiceSample: readme.slice(0, 4000),
+          }),
+        })
+        const startup = await startupRes.json()
+        setCompletedSteps(prev => new Set([...prev, 2]))
+
+        // Step 3: generate pitch (Gemini runs here — takes a few seconds)
+        setCurrentStep(3)
+        const sessionRes = await fetch('/api/sessions', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ startupId: startup.id }),
+        })
+        const session = await sessionRes.json()
+        setCompletedSteps(prev => new Set([...prev, 3]))
+
+        // Step 4: build room
+        setCurrentStep(4)
+        await new Promise(r => setTimeout(r, 800))
+        setCompletedSteps(prev => new Set([...prev, 4]))
+
+        setDone(true)
+        setTimeout(() => router.push(`/session/${session.id}`), 1200)
+      } catch {
+        // Fallback: use demo session
+        STEPS.forEach((_, i) => {
+          setTimeout(() => {
+            setCurrentStep(i)
+            setTimeout(() => setCompletedSteps(prev => new Set([...prev, i])), 600)
+          }, i * STEP_DELAY)
+        })
+        setTimeout(() => {
+          setDone(true)
+          setTimeout(() => router.push(`/session/${FALLBACK_SESSION}`), 1200)
+        }, STEPS.length * STEP_DELAY + 600)
+      }
+    }
+
+    run()
+  }, [router, owner, repoName, repo, companyName])
 
   const progress = (completedSteps.size / STEPS.length) * 100
 
   return (
     <div className="min-h-screen bg-void flex flex-col relative overflow-hidden">
-      {/* Stars */}
       <div className="absolute inset-0 pointer-events-none">
         {stars.map((s, i) => (
           <div
@@ -73,17 +153,14 @@ function LoadingContent() {
         ))}
       </div>
 
-      {/* Top label */}
       <div className="relative z-10 flex items-center justify-between px-8 pt-8">
         <span className="font-display text-amber tracking-widest text-sm">YCSIM</span>
         <span className="font-mono text-xs text-dim">{repo}</span>
       </div>
 
-      {/* Main content */}
       <div className="relative z-10 flex-1 flex flex-col items-center justify-center px-8">
         {!done ? (
           <div className="w-full max-w-md space-y-10">
-            {/* Big status word */}
             <div className="overflow-hidden">
               <div
                 key={currentStep}
@@ -94,7 +171,6 @@ function LoadingContent() {
               </div>
             </div>
 
-            {/* Step list */}
             <div className="space-y-4">
               {STEPS.map((step, i) => {
                 const completed = completedSteps.has(i)
@@ -132,7 +208,7 @@ function LoadingContent() {
                       </span>
                       {completed && i === 1 && (
                         <span className="font-mono text-xs text-amber/50" style={{ animation: 'fade-in 0.5s ease-out forwards' }}>
-                          found: {companyName}
+                          {companyName}
                         </span>
                       )}
                     </div>
@@ -164,7 +240,6 @@ function LoadingContent() {
         )}
       </div>
 
-      {/* Bottom progress bar */}
       <div className="relative z-10 px-0 pb-0">
         <div className="h-0.5 bg-surface w-full">
           <div
