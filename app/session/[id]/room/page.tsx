@@ -5,7 +5,11 @@ import { useParams, useRouter } from 'next/navigation'
 import { InvestorType, Session, AvatarRole } from '@/lib/types'
 import { MOCK_SESSION } from '@/lib/mockData'
 import { useReplicasAvatar } from '@/lib/hooks/useReplicasAvatar'
+<<<<<<< HEAD
 import { personaForRole } from '@/adapters/replicas'
+=======
+import { cacheReport } from '@/lib/reportCache'
+>>>>>>> 030eb1c202d8c24c7dc8b00a1e0ca7933e4e487b
 
 type RoomStage = 'pitch' | 'q1' | 'q2' | 'q3' | 'done'
 
@@ -34,6 +38,7 @@ export default function RoomPage() {
   const [currentAnswer, setCurrentAnswer] = useState('')
   const [transcript, setTranscript] = useState<TranscriptEntry[]>([])
   const [timer, setTimer] = useState(0)
+  const [submitting, setSubmitting] = useState(false)
   const transcriptRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -69,7 +74,8 @@ export default function RoomPage() {
   }
 
   const questions = session.questions ?? []
-  const currentQ = stage !== 'pitch' && stage !== 'done' ? questions[STAGE_Q_IDX[stage]] : null
+  const isPitch = stage === 'pitch'
+  const currentQ = !isPitch && stage !== 'done' ? questions[STAGE_Q_IDX[stage]] : null
   const activeInvestor = currentQ ? INVESTORS[currentQ.investorType] : null
   const companyName = session.startup?.companyName ?? session.startupId
 
@@ -88,19 +94,40 @@ export default function RoomPage() {
   }
 
   async function submitAnswer() {
-    if (!currentQ || !currentAnswer.trim()) return
+    if (!currentQ || !currentAnswer.trim() || submitting) return
 
-    const inv = INVESTORS[currentQ.investorType]
-    const newEntry: TranscriptEntry = { speaker: 'You', role: 'founder', text: currentAnswer }
-
+    const answer = currentAnswer.trim()
+    const newEntry: TranscriptEntry = { speaker: 'You', role: 'founder', text: answer }
     const nextIdx = STAGE_Q_IDX[stage] + 1
     const isLast = nextIdx >= questions.length
 
+    setTranscript((t) => [...t, newEntry])
+    setCurrentAnswer('')
+    setSubmitting(true)
+
+    try {
+      await fetch(`/api/sessions/${id}/answer`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ questionId: currentQ.id, answer }),
+      })
+    } catch {}
+
     if (isLast) {
-      setTranscript(t => [...t, newEntry])
-      setCurrentAnswer('')
       try {
-        await fetch(`/api/sessions/${id}/finalize`, { method: 'POST' })
+        const res = await fetch(`/api/sessions/${id}/finalize`, { method: 'POST' })
+        if (res.ok) {
+          const data = await res.json()
+          cacheReport(id, {
+            readinessScore: data.readinessScore,
+            scoreBreakdown: data.scoreBreakdown ?? {},
+            strengths: data.strengths ?? [],
+            weaknesses: data.weaknesses ?? [],
+            rewrittenPitch: data.rewrittenPitch ?? '',
+            launchAssets: data.launchAssets ?? data.session?.launchAssets ?? [],
+            session: data.session,
+          })
+        }
       } catch {}
       router.push(`/session/${id}/report`)
       return
@@ -108,13 +135,12 @@ export default function RoomPage() {
 
     const nextQ = questions[nextIdx]
     const nextInv = INVESTORS[nextQ.investorType]
-    setTranscript(t => [
+    setTranscript((t) => [
       ...t,
-      newEntry,
       { speaker: nextInv.name, role: 'investor', text: nextQ.question },
     ])
-    setCurrentAnswer('')
     setStage(STAGE_ORDER[STAGE_ORDER.indexOf(stage) + 1] as RoomStage)
+    setSubmitting(false)
   }
 
   return (
@@ -143,7 +169,11 @@ export default function RoomPage() {
               activeInvestor={activeInvestor}
               companyName={companyName}
               pitch={session.pitch}
+<<<<<<< HEAD
               currentQuestion={currentQ?.question}
+=======
+              spokenText={isPitch ? session.pitch : currentQ?.question}
+>>>>>>> 030eb1c202d8c24c7dc8b00a1e0ca7933e4e487b
             />
           </div>
 
@@ -241,10 +271,14 @@ export default function RoomPage() {
                 />
                 <button
                   onClick={submitAnswer}
-                  disabled={!currentAnswer.trim()}
+                  disabled={!currentAnswer.trim() || submitting}
                   className="w-full bg-amber text-void font-display text-lg tracking-widest py-2.5 rounded hover:bg-amber-bright transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
                 >
-                  {STAGE_Q_IDX[stage] === questions.length - 1 ? 'FINISH →' : 'SUBMIT →'}
+                  {submitting
+                    ? 'SCORING...'
+                    : STAGE_Q_IDX[stage] === questions.length - 1
+                    ? 'FINISH →'
+                    : 'SUBMIT →'}
                 </button>
               </>
             ) : null}
@@ -295,13 +329,21 @@ function AvatarStage({
   activeInvestor,
   companyName,
   pitch,
+<<<<<<< HEAD
   currentQuestion,
+=======
+  spokenText,
+>>>>>>> 030eb1c202d8c24c7dc8b00a1e0ca7933e4e487b
 }: {
   stage: RoomStage
   activeInvestor: { name: string; title: string; color: string } | null
   companyName: string
   pitch?: string
+<<<<<<< HEAD
   currentQuestion?: string
+=======
+  spokenText?: string
+>>>>>>> 030eb1c202d8c24c7dc8b00a1e0ca7933e4e487b
 }) {
   const isPitch = stage === 'pitch'
   const speaker = isPitch
@@ -318,6 +360,7 @@ function AvatarStage({
   const displayName = speaker?.name ?? 'Founder'
 
   const { avatarSession, isLoading, isMock, createAvatar, speak } = useReplicasAvatar()
+  const lastSpoken = useRef<string | null>(null)
 
   // Create the avatar whenever the active speaker (role) changes.
   // Keyed on `role` only so it runs once per speaker, not every render.
@@ -327,6 +370,7 @@ function AvatarStage({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [role, stage])
 
+<<<<<<< HEAD
   // Once the avatar exists, have it speak the founder pitch / investor question.
   useEffect(() => {
     if (stage === 'done') return
@@ -337,6 +381,15 @@ function AvatarStage({
   }, [avatarSession?.providerAvatarId, speakText, stage])
 
   const isSpeaking = avatarSession?.status === 'speaking'
+=======
+  // Speak pitch or investor question when avatar is ready
+  useEffect(() => {
+    if (spokenText && avatarSession && !isLoading && lastSpoken.current !== spokenText) {
+      lastSpoken.current = spokenText
+      speak(spokenText)
+    }
+  }, [spokenText, avatarSession, isLoading, speak])
+>>>>>>> 030eb1c202d8c24c7dc8b00a1e0ca7933e4e487b
 
   return (
     <>

@@ -158,6 +158,12 @@ async function createSessionHandler(req, res) {
   const startup = await getStartup(body.startupId);
   if (!startup) return sendJson(res, 404, { error: "Startup not found" });
 
+  // TODO (Advaita): enrich startup.founderVoiceSample from InsForge agent_personalities before
+  // calling generatePitchPackage so the pitch reflects the stored founder persona. Example:
+  //   const personalities = await getAgentPersonalities();
+  //   const founderPersona = personalities.find(p => p.role === "founder");
+  //   if (founderPersona && !startup.founderVoiceSample) startup.founderVoiceSample = founderPersona.persona;
+
   const sessionId = id("session");
   const session = await createSession({
     id: sessionId,
@@ -220,12 +226,18 @@ async function answerHandler(req, res, sessionId) {
   const question = session.questions.find((item) => item.id === body.questionId);
   if (!question) return sendJson(res, 404, { error: "Question not found" });
 
+  const personalities = await getAgentPersonalities().catch(() => []);
+  const personality = personalities.find((p) => p.role === question.investorType);
+
   const evaluation = await evaluateAnswer({
     context: toStartupContext(session.startup),
     pitch: session.generatedPitch,
     investorType: question.investorType,
     question: question.question,
-    answer: normalizeText(body.answer)
+    answer: normalizeText(body.answer),
+    investorPersona: personality
+      ? { systemPrompt: personality.systemPrompt, persona: personality.persona, questionStyle: personality.questionStyle }
+      : null
   });
 
   const updated = await updateQuestionAnswer(question.id, {
@@ -291,6 +303,7 @@ const DEMO_CONTEXT = {
   whyNow: "Retrieval-augmented LLMs are finally accurate enough for production support."
 };
 
+<<<<<<< HEAD
 async function socialPostsHandler(_req, res, sessionId) {
   // Resilient: if the session is not persisted (e.g. the demo/sample id),
   // fall back to the FlowDesk sample context so the social tab always renders.
@@ -299,6 +312,19 @@ async function socialPostsHandler(_req, res, sessionId) {
   const pitch = session?.generatedPitch || "";
 
   const posts = await generateSocialPostText(context, pitch);
+=======
+  const posts = await generateSocialPostText(
+    toStartupContext(session.startup),
+    session.generatedPitch
+  );
+
+  // TODO (doniv): for each platform's posts, generate 3-5 simulated user comments using Gemini.
+  // Each post already has { text, hook, imageData }. Add a `comments` array to each post:
+  //   PostComment { personaType, displayName, text, sentiment: "positive"|"neutral"|"skeptical", likes }
+  // Persona types: early_adopter, industry_skeptic, competitor_user, technical_user, casual_observer
+  // Use GEMINI_API_KEY (already in .env) — no extra setup needed.
+
+>>>>>>> 030eb1c202d8c24c7dc8b00a1e0ca7933e4e487b
   sendJson(res, 200, posts);
 }
 
@@ -308,7 +334,7 @@ async function investorResponseHandler(req, res) {
 
   let context = null;
   if (body.sessionId) {
-    const session = await getSession(body.sessionId);
+    const session = await getSession(body.sessionId).catch(() => null);
     if (session?.startup) context = toStartupContext(session.startup);
   }
   if (!context && body.context && Object.keys(body.context).length > 0) {
@@ -317,6 +343,8 @@ async function investorResponseHandler(req, res) {
   // Fall back to the FlowDesk sample so Gemini always answers in-context.
   if (!context) context = DEMO_CONTEXT;
 
+  console.log(`[investor-response] investor=${body.investor?.name} message="${body.message?.slice(0, 60)}"`);
+
   const response = await generateInvestorResponse({
     context,
     investor: body.investor || {},
@@ -324,6 +352,7 @@ async function investorResponseHandler(req, res) {
     fallbackText: normalizeText(body.fallbackText)
   });
 
+  console.log(`[investor-response] reply="${response.text?.slice(0, 80)}"`);
   sendJson(res, 200, response);
 }
 
@@ -356,6 +385,7 @@ async function speakHandler(req, res, avatarId) {
   }
 }
 
+<<<<<<< HEAD
 // ─── Replicas (real coding-agent) handlers ────────────────────────────────────
 
 async function replicaAnalyzeHandler(req, res) {
@@ -446,10 +476,17 @@ async function replicaStreamHandler(_req, res, replicaId) {
   } finally {
     res.end();
   }
+=======
+function setCors(res) {
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+>>>>>>> 030eb1c202d8c24c7dc8b00a1e0ca7933e4e487b
 }
 
 async function route(req, res) {
   const url = new URL(req.url, `http://${req.headers.host}`);
+  setCors(res);
 
   if (req.method === "OPTIONS") return sendJson(res, 204, {});
   if (req.method === "GET" && url.pathname === "/health") {

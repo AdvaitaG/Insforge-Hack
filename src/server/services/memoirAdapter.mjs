@@ -202,7 +202,13 @@ export async function evaluateAnswer(input) {
   const model = getTextModel();
   if (!model) return evaluateMockAnswer(input);
 
-  const prompt = `You are a YC partner evaluating a founder's answer to an investor question during Demo Day practice.
+  const investorVoice = input.investorPersona
+    ? `\n${input.investorPersona.systemPrompt}\nPersona: ${input.investorPersona.persona}\nQuestion style: ${input.investorPersona.questionStyle}`
+    : `\nYou are a ${input.investorType.replace(/_/g, " ")} evaluating this answer.`;
+
+  const prompt = `${investorVoice}
+
+You are evaluating a founder's answer to an investor question during Demo Day practice.
 
 Company: ${input.context?.companyName ?? "the startup"}
 Investor type: ${input.investorType}
@@ -273,20 +279,18 @@ Rules:
 
   try {
     const result = await model.generateContent(prompt);
-    const parsed = JSON.parse(stripJSON(result.response.text()));
-    return {
-      text:
-        parsed.text ||
-        input.fallbackText ||
-        "That helps. The next thing I would test is whether customers repeat this behavior without founder hand-holding."
-    };
+    const raw = result.response.text();
+    let text = raw;
+    try {
+      const parsed = JSON.parse(stripJSON(raw));
+      if (parsed.text) text = parsed.text;
+    } catch {
+      // Gemini returned plain text instead of JSON — use it directly
+    }
+    return { text: text.trim() || "What evidence do you have that users need this urgently?" };
   } catch (error) {
-    console.warn("[memoirAdapter] Gemini investor response failed, using fallback:", error.message);
-    return {
-      text:
-        input.fallbackText ||
-        "I want to understand the actual customer pull here. What evidence do you have that users need this urgently?"
-    };
+    console.warn("[memoirAdapter] Gemini investor response failed:", error.message);
+    return { text: "What evidence do you have that users need this urgently?" };
   }
 }
 

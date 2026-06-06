@@ -1,17 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { MOCK_STARTUP } from '@/lib/mockData'
 
-// ADVAITA: replace mock with InsForge/Postgres insert
+const BACKEND = process.env.BACKEND_URL ?? 'http://127.0.0.1:8787'
+
 export async function POST(req: NextRequest) {
-  const body = await req.json()
-
-  // TODO: insert into startups table, return real startup with id
-  const startup = {
-    ...MOCK_STARTUP,
-    ...body,
-    id: `startup_${Date.now()}`,
-    createdAt: new Date().toISOString(),
-  }
-
-  return NextResponse.json(startup)
+  const body = await req.text()
+  const res = await fetch(`${BACKEND}/api/startups`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body,
+  })
+  return NextResponse.json(await res.json(), { status: res.status })
 }

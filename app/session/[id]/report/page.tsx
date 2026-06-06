@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { FinalReport, Session } from '@/lib/types'
 import { MOCK_FINAL_REPORT, MOCK_SESSION } from '@/lib/mockData'
+import { loadCachedReport } from '@/lib/reportCache'
 
 const SCORE_LABELS: Record<string, string> = {
   clarity: 'Clarity',
@@ -35,6 +36,20 @@ export default function ReportPage() {
   const [showRewritten, setShowRewritten] = useState(false)
 
   useEffect(() => {
+    const cached = loadCachedReport(id)
+    if (cached) {
+      setReport({
+        readinessScore: cached.readinessScore,
+        scoreBreakdown: cached.scoreBreakdown ?? {},
+        strengths: cached.strengths ?? [],
+        weaknesses: cached.weaknesses ?? [],
+        rewrittenPitch: cached.rewrittenPitch ?? '',
+        launchAssets: cached.launchAssets ?? [],
+      })
+      if (cached.session) setSession(cached.session as Session)
+      return
+    }
+
     fetch(`/api/sessions/${id}`)
       .then(r => r.json())
       .then((s: Session) => {

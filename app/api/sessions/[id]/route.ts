@@ -1,15 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { MOCK_SESSION } from '@/lib/mockData'
 
-// ADVAITA: replace mock with InsForge/Postgres lookup
+const BACKEND = process.env.BACKEND_URL ?? 'http://127.0.0.1:8787'
+
 export async function GET(
   _req: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  const { id } = params
-
-  // TODO: query sessions + investor_questions + launch_assets by id
-  const session = { ...MOCK_SESSION, id }
-
-  return NextResponse.json(session)
+  const res = await fetch(`${BACKEND}/api/sessions/${params.id}`)
+  return NextResponse.json(await res.json(), { status: res.status })
 }

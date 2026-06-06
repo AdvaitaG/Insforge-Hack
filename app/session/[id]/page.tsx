@@ -146,6 +146,12 @@ export default function PitchPreviewPage() {
             Regenerate
           </button>
           <button
+            onClick={() => router.push(`/dashboard/${id}`)}
+            className="font-mono text-sm text-muted border border-border px-4 py-2 rounded hover:border-muted transition-colors"
+          >
+            View dashboard
+          </button>
+          <button
             onClick={() => router.push(`/session/${id}/room`)}
             className="font-display text-xl tracking-widest bg-amber text-void px-8 py-2 rounded hover:bg-amber-bright transition-colors"
           >
