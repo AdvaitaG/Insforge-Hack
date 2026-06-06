@@ -189,14 +189,13 @@ Done:
 
 Remaining:
 
-1. Add `GEMINI_API_KEY` to backend environment and create a shared `gemini.mjs` client in `src/server/services/` that eshwar's adapter can import.
-2. Add image generation — call an image gen API (Gemini Imagen or similar) with each social post's text, store the result URL in `launch_assets` alongside the text content.
-3. Load founder persona context — query the person database for voice/speaking instructions and pass them as a system prompt prefix into `generatePitchPackage` calls so the pitch sounds like the founder.
-4. Keep backend running during frontend work.
-5. Help doniv and eshwar debug API shape issues.
-6. Commit and push backend files.
-7. Avoid changing route contracts unless the whole team agrees.
-8. Optional: help deploy if time allows.
+1. **Wire InsForge personas to Gemini** — the InsForge Postgres database has a `agent_personalities` table (already queryable via `getAgentPersonalities()` in `src/server/store/index.mjs`). When `generatePitchPackage` is called, fetch the stored personality/voice data for the founder from the database and inject it as a system prompt prefix so the generated pitch sounds like the actual founder, not a generic AI. The `founderVoiceSample` field in `StartupContext` is already the right place to pass this — just populate it from the DB before calling the adapter. Use the InsForge API key you already have.
+2. Wire the same persona data into the Demo Day investor bubbles — the `INVESTORS` array in the dashboard is currently hardcoded FlowDesk data. Once InsForge is wired, replace it with investor personalities stored in the DB so they reflect the actual startup being presented.
+3. Keep backend running during frontend work.
+4. Help doniv and eshwar debug API shape issues.
+5. Commit and push backend files.
+6. Avoid changing route contracts unless the whole team agrees.
+7. Optional: help deploy if time allows.
 
 ### Tables
 

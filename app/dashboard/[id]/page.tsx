@@ -1,12 +1,24 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { useParams } from 'next/navigation'
+
+const API_BASE = 'http://localhost:8787'
 
 const COMPANY = {
   name: 'FlowDesk',
   tagline: 'AI-powered support that resolves 80% of tickets before a human sees them.',
   repo: 'flowdesk/flowdesk',
   mrr: '$18k MRR',
+}
+
+type SocialPost = { text: string; hook: string; imageData: string | null }
+type SocialPosts = {
+  x: SocialPost[]
+  linkedin: SocialPost[]
+  hackerNews: SocialPost[]
+  productHunt: SocialPost[]
+  instagram: SocialPost[]
 }
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -227,36 +239,11 @@ function getResponse(investor: Investor, stats: InvestorStats, message: string):
   return bank[Math.floor(Math.random() * bank.length)]
 }
 
-// ─── Social Post Data ─────────────────────────────────────────────────────────
-
-const SOCIAL_POSTS = {
-  x: {
-    handle: '@flowdesk_ai', name: 'FlowDesk', time: '2h',
-    text: `We just hit $18k MRR.\n\nHere's what we've learned building AI support infrastructure for SaaS:\n\nThe problem isn't that support is slow. It's that agents don't know your product.\n\nFlowDesk reads your GitHub, your Notion, your error logs. It knows what broke before your customer finishes typing.\n\n80% resolution rate. 8-second avg response. Thread 🧵`,
-    likes: 1243, retweets: 389, replies: 147,
-  },
-  linkedin: {
-    name: 'Priya Nair', headline: 'CEO at FlowDesk · ex-Stripe Support Engineering', time: '3 hours ago',
-    text: `I spent 6 years at Stripe watching brilliant engineers get woken up at 2am to answer tickets any AI should have handled.\n\nThat's why we built FlowDesk.\n\nIt connects to your codebase, your docs, your Stripe account. When a ticket arrives, it already knows what's wrong.\n\n12 paying customers. $18k MRR. 118% NRR.\n\nWe're just getting started.`,
-    likes: 2810, comments: 134,
-  },
-  hn: {
-    points: 1204,
-    title: 'Show HN: FlowDesk – AI support that reads your codebase and resolves 80% of tickets automatically',
-    text: `Built this after watching support costs at a Series A company 3x in 12 months with no improvement in CSAT. Core insight: most tools treat every ticket as unknown. We treat every ticket as a known problem we haven't seen from this customer yet.`,
-    submitter: 'priya_nair', time: '5 hours ago', comments: 287,
-  },
-  ph: {
-    upvotes: 847, name: 'FlowDesk',
-    tagline: 'AI support that resolves 80% of tickets before a human ever sees them.',
-    description: `FlowDesk connects to your GitHub, Notion, Stripe, and product database. When a ticket arrives, it already knows what's wrong.\n\n→ 80% automated resolution rate\n→ 8-second average response time\n→ Full context handoff for the other 20%`,
-    badge: '#1 Product of the Day',
-  },
-}
-
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function DashboardPage() {
+  const params = useParams()
+  const sessionId = params?.id as string | undefined
   const [tab, setTab] = useState<Tab>('social')
   return (
     <div className="h-screen bg-void flex flex-col overflow-hidden">
@@ -275,10 +262,10 @@ export default function DashboardPage() {
             </button>
           ))}
         </div>
-        <div className="font-mono text-xs text-dim hidden md:block">memoir + replicas</div>
+        <div className="font-mono text-xs text-dim hidden md:block">gemini + replicas</div>
       </div>
       <div className="flex-1 overflow-hidden">
-        {tab === 'social' ? <SocialTab /> : <DemoDayTab />}
+        {tab === 'social' ? <SocialTab sessionId={sessionId} /> : <DemoDayTab />}
       </div>
     </div>
   )
@@ -286,97 +273,190 @@ export default function DashboardPage() {
 
 // ─── Social Tab ───────────────────────────────────────────────────────────────
 
-function SocialTab() {
-  const [active, setActive] = useState<'x' | 'linkedin' | 'hn' | 'ph'>('x')
+type Platform = 'x' | 'linkedin' | 'hn' | 'ph' | 'instagram'
+const PLATFORM_LABELS: Record<Platform, string> = {
+  x: 'X / Twitter', linkedin: 'LinkedIn', hn: 'Hacker News', ph: 'Product Hunt', instagram: 'Instagram'
+}
+
+function SocialTab({ sessionId }: { sessionId?: string }) {
+  const [active, setActive] = useState<Platform>('x')
+  const [posts, setPosts] = useState<SocialPosts | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [postIndex, setPostIndex] = useState<Record<Platform, number>>({ x: 0, linkedin: 0, hn: 0, ph: 0, instagram: 0 })
+
+  useEffect(() => {
+    if (!sessionId) return
+    setLoading(true)
+    fetch(`${API_BASE}/api/sessions/${sessionId}/social-posts`, { method: 'POST' })
+      .then(r => r.json())
+      .then(data => { setPosts(data); setLoading(false) })
+      .catch(() => setLoading(false))
+  }, [sessionId])
+
+  const platformKey = active === 'hn' ? 'hackerNews' : active === 'ph' ? 'productHunt' : active
+  const currentPosts: SocialPost[] = (posts as any)?.[platformKey] ?? []
+  const idx = postIndex[active]
+  function setIdx(n: number) { setPostIndex(prev => ({ ...prev, [active]: n })) }
+
   return (
     <div className="h-full flex flex-col overflow-hidden">
-      <div className="flex items-center gap-1 px-6 py-3 border-b border-border shrink-0">
-        {(['x', 'linkedin', 'hn', 'ph'] as const).map(p => (
+      <div className="flex items-center gap-1 px-6 py-3 border-b border-border shrink-0 overflow-x-auto">
+        {(Object.keys(PLATFORM_LABELS) as Platform[]).map(p => (
           <button key={p} onClick={() => setActive(p)}
-            className="font-mono text-xs px-3 py-1.5 rounded border transition-all"
+            className="font-mono text-xs px-3 py-1.5 rounded border transition-all shrink-0"
             style={{ borderColor: active === p ? '#FF6100' : '#1E1E2E', color: active === p ? '#FF6100' : '#6E6E84', background: active === p ? 'rgba(255,97,0,0.05)' : 'transparent' }}>
-            {p === 'x' ? 'X / Twitter' : p === 'linkedin' ? 'LinkedIn' : p === 'hn' ? 'Hacker News' : 'Product Hunt'}
+            {PLATFORM_LABELS[p]}
           </button>
         ))}
-        <div className="ml-auto font-mono text-xs text-dim">generated by memoir · not posted</div>
-      </div>
-      <div className="flex-1 overflow-y-auto px-6 py-8 flex items-start justify-center">
-        <div className="w-full max-w-lg" key={active} style={{ animation: 'fade-in 0.4s ease-out' }}>
-          {active === 'x' && <XCard />}
-          {active === 'linkedin' && <LinkedInCard />}
-          {active === 'hn' && <HNCard />}
-          {active === 'ph' && <PHCard />}
+        <div className="ml-auto font-mono text-xs text-dim shrink-0 pl-4">
+          {loading ? 'generating with gemini...' : posts ? 'generated · not posted' : 'gemini · not posted'}
         </div>
+      </div>
+      <div className="flex-1 overflow-y-auto px-6 py-6 flex flex-col items-center">
+        {loading ? (
+          <div className="flex flex-col items-center justify-center h-full gap-4">
+            <div className="w-8 h-8 rounded-full border-2 border-amber border-t-transparent animate-spin" />
+            <div className="font-mono text-xs text-dim">Generating 3 posts + images per platform...</div>
+          </div>
+        ) : (
+          <div className="w-full max-w-lg space-y-4" key={`${active}-${idx}`} style={{ animation: 'fade-in 0.3s ease-out' }}>
+            {currentPosts.length > 1 && (
+              <div className="flex items-center justify-between">
+                <div className="flex gap-1.5">
+                  {currentPosts.map((_, i) => (
+                    <button key={i} onClick={() => setIdx(i)}
+                      className="rounded-full transition-all duration-200"
+                      style={{ width: i === idx ? 20 : 8, height: 8, background: i === idx ? '#FF6100' : '#3E3E52' }} />
+                  ))}
+                </div>
+                <div className="flex gap-1">
+                  <button onClick={() => setIdx(Math.max(0, idx - 1))} disabled={idx === 0}
+                    className="font-mono text-xs px-2 py-1 rounded border border-border text-muted disabled:opacity-30 hover:border-amber transition-colors">←</button>
+                  <button onClick={() => setIdx(Math.min(currentPosts.length - 1, idx + 1))} disabled={idx >= currentPosts.length - 1}
+                    className="font-mono text-xs px-2 py-1 rounded border border-border text-muted disabled:opacity-30 hover:border-amber transition-colors">→</button>
+                </div>
+              </div>
+            )}
+            {currentPosts.length > 0 ? (
+              <>
+                {currentPosts[idx]?.imageData && (
+                  <img src={currentPosts[idx].imageData!} alt="Generated post visual"
+                    className="w-full rounded-xl object-cover" style={{ maxHeight: 220 }} />
+                )}
+                {currentPosts[idx]?.hook && (
+                  <div className="inline-flex items-center gap-1.5 bg-amber/10 border border-amber/20 rounded-full px-2.5 py-1">
+                    <span className="font-mono text-xs text-amber">{currentPosts[idx].hook}</span>
+                  </div>
+                )}
+                {active === 'x' && <XCard post={currentPosts[idx]} />}
+                {active === 'linkedin' && <LinkedInCard post={currentPosts[idx]} />}
+                {active === 'hn' && <HNCard post={currentPosts[idx]} />}
+                {active === 'ph' && <PHCard post={currentPosts[idx]} />}
+                {active === 'instagram' && <InstagramCard post={currentPosts[idx]} />}
+              </>
+            ) : (
+              <div className="text-center font-mono text-xs text-dim py-16">
+                {sessionId ? 'Loading posts...' : 'Open from a session to generate posts'}
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   )
 }
 
-function XCard() {
-  const p = SOCIAL_POSTS.x
+function XCard({ post }: { post: SocialPost }) {
   return (
     <div className="rounded-2xl border border-border p-6 space-y-4" style={{ background: '#0f1419' }}>
       <div className="flex items-start gap-3">
-        <div className="w-10 h-10 rounded-full bg-amber flex items-center justify-center text-void font-display text-lg shrink-0">F</div>
-        <div><div className="text-snow text-sm font-medium">{p.name}</div><div className="text-muted font-mono text-xs">{p.handle} · {p.time}</div></div>
+        <div className="w-10 h-10 rounded-full bg-amber flex items-center justify-center text-void font-display text-lg shrink-0">{COMPANY.name[0]}</div>
+        <div><div className="text-snow text-sm font-medium">{COMPANY.name}</div><div className="text-muted font-mono text-xs">@{COMPANY.name.toLowerCase().replace(/\s+/g, '_')} · just now</div></div>
       </div>
-      <p className="text-snow/90 text-sm leading-relaxed whitespace-pre-line">{p.text}</p>
+      <p className="text-snow/90 text-sm leading-relaxed whitespace-pre-line">{post.text}</p>
       <div className="flex items-center gap-6 pt-2 border-t border-white/5">
-        <span className="font-mono text-xs text-muted">💬 {p.replies.toLocaleString()}</span>
-        <span className="font-mono text-xs text-muted">🔁 {p.retweets.toLocaleString()}</span>
-        <span className="font-mono text-xs text-muted">❤️ {p.likes.toLocaleString()}</span>
+        <span className="font-mono text-xs text-muted">💬 —</span>
+        <span className="font-mono text-xs text-muted">🔁 —</span>
+        <span className="font-mono text-xs text-muted">❤️ —</span>
       </div>
     </div>
   )
 }
 
-function LinkedInCard() {
-  const p = SOCIAL_POSTS.linkedin
+function LinkedInCard({ post }: { post: SocialPost }) {
   return (
     <div className="rounded-2xl border border-border p-6 space-y-4" style={{ background: '#1c1c1c' }}>
       <div className="flex items-start gap-3">
-        <div className="w-12 h-12 rounded-xl bg-teal flex items-center justify-center text-void font-display text-xl shrink-0">P</div>
-        <div><div className="text-snow text-sm font-medium">{p.name}</div><div className="text-muted font-mono text-xs">{p.headline}</div><div className="text-dim font-mono text-xs mt-0.5">{p.time} · 🌐</div></div>
+        <div className="w-12 h-12 rounded-xl flex items-center justify-center text-white font-display text-xl shrink-0" style={{ background: '#0A66C2' }}>{COMPANY.name[0]}</div>
+        <div><div className="text-snow text-sm font-medium">{COMPANY.name}</div><div className="text-muted font-mono text-xs">Founder</div><div className="text-dim font-mono text-xs mt-0.5">just now · 🌐</div></div>
       </div>
-      <p className="text-snow/85 text-sm leading-relaxed whitespace-pre-line">{p.text}</p>
+      <p className="text-snow/85 text-sm leading-relaxed whitespace-pre-line">{post.text}</p>
       <div className="flex gap-4 pt-3 border-t border-white/5">
-        <span className="text-muted font-mono text-xs">👍 {p.likes.toLocaleString()}</span>
-        <span className="text-muted font-mono text-xs">💬 {p.comments} comments</span>
+        <span className="text-muted font-mono text-xs">👍 —</span>
+        <span className="text-muted font-mono text-xs">💬 — comments</span>
       </div>
     </div>
   )
 }
 
-function HNCard() {
-  const p = SOCIAL_POSTS.hn
+function HNCard({ post }: { post: SocialPost }) {
+  const lines = post.text.split('\n')
+  const title = lines[0]
+  const body = lines.slice(1).join('\n').trim()
   return (
     <div className="rounded-2xl border border-border p-6 space-y-3" style={{ background: '#1a0f00' }}>
       <div className="flex items-start gap-3">
-        <div className="flex flex-col items-center shrink-0"><div className="text-amber text-lg leading-none">▲</div><div className="font-mono text-sm text-amber font-bold">{p.points}</div></div>
+        <div className="flex flex-col items-center shrink-0"><div className="text-amber text-lg leading-none">▲</div><div className="font-mono text-sm text-amber font-bold">—</div></div>
         <div className="space-y-2">
-          <div className="text-snow font-medium text-sm">{p.title}</div>
-          <p className="text-snow/70 text-xs leading-relaxed">{p.text}</p>
-          <div className="font-mono text-xs text-dim">submitted {p.time} by <span className="text-amber/70">{p.submitter}</span> · {p.comments} comments</div>
+          <div className="text-snow font-medium text-sm">{title}</div>
+          {body && <p className="text-snow/70 text-xs leading-relaxed">{body}</p>}
+          <div className="font-mono text-xs text-dim">submitted just now by <span className="text-amber/70">{COMPANY.name.toLowerCase().replace(/\s+/g, '')}</span> · — comments</div>
         </div>
       </div>
     </div>
   )
 }
 
-function PHCard() {
-  const p = SOCIAL_POSTS.ph
+function PHCard({ post }: { post: SocialPost }) {
+  const lines = post.text.split('\n')
+  const tagline = lines[0]
+  const description = lines.slice(1).join('\n').trim()
   return (
     <div className="rounded-2xl border border-border p-6 space-y-4" style={{ background: '#1a0a00' }}>
       <div className="flex items-start gap-4">
-        <button className="shrink-0 flex flex-col items-center gap-1 border border-coral/40 rounded-xl px-3 py-2">
-          <span className="text-coral text-sm">▲</span>
-          <span className="font-mono text-xs text-coral font-bold">{p.upvotes}</span>
-        </button>
-        <div><div className="flex items-center gap-2 mb-1"><div className="w-10 h-10 rounded-xl bg-coral flex items-center justify-center text-void font-display text-lg">F</div><div><div className="text-snow font-medium text-sm">{p.name}</div><div className="text-muted font-mono text-xs">{p.tagline}</div></div></div></div>
+        <div className="shrink-0 flex flex-col items-center gap-1 border border-orange-500/40 rounded-xl px-3 py-2">
+          <span className="text-orange-400 text-sm">▲</span>
+          <span className="font-mono text-xs text-orange-400 font-bold">—</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white font-display text-lg" style={{ background: '#FF6154' }}>{COMPANY.name[0]}</div>
+          <div><div className="text-snow font-medium text-sm">{COMPANY.name}</div><div className="text-muted font-mono text-xs">{tagline}</div></div>
+        </div>
       </div>
-      <p className="text-snow/80 text-sm leading-relaxed whitespace-pre-line">{p.description}</p>
-      <div className="inline-flex items-center gap-2 bg-coral/10 border border-coral/20 rounded-full px-3 py-1">
-        <span className="text-coral text-xs">🔸</span><span className="font-mono text-xs text-coral">{p.badge}</span>
+      {description && <p className="text-snow/80 text-sm leading-relaxed whitespace-pre-line">{description}</p>}
+    </div>
+  )
+}
+
+function InstagramCard({ post }: { post: SocialPost }) {
+  const parts = post.text.split('\n\n')
+  const caption = parts[0]
+  const hashtags = parts.slice(1).join(' ')
+  return (
+    <div className="rounded-2xl border border-border p-6 space-y-4" style={{ background: '#1a1a2e' }}>
+      <div className="flex items-center gap-3">
+        <div className="w-10 h-10 rounded-full flex items-center justify-center text-white font-display text-lg shrink-0"
+          style={{ background: 'linear-gradient(135deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888)' }}>
+          {COMPANY.name[0]}
+        </div>
+        <div><div className="text-snow text-sm font-medium">{COMPANY.name.toLowerCase().replace(/\s+/g, '.')}</div><div className="text-dim font-mono text-xs">just now</div></div>
+      </div>
+      <p className="text-snow/90 text-sm leading-relaxed whitespace-pre-line">{caption}</p>
+      {hashtags && <p className="text-blue-400/70 text-xs leading-relaxed">{hashtags}</p>}
+      <div className="flex items-center gap-5 pt-2 border-t border-white/5">
+        <span className="text-muted font-mono text-xs">❤️ —</span>
+        <span className="text-muted font-mono text-xs">💬 —</span>
+        <span className="text-muted font-mono text-xs">✈️ —</span>
       </div>
     </div>
   )
@@ -507,9 +587,15 @@ function DemoDayTab() {
 function InvestorBubble({ investor, stats, isSpeaking, isSelected, onClick }: {
   investor: Investor; stats: InvestorStats; isSpeaking: boolean; isSelected: boolean; onClick: () => void
 }) {
+  const headSize = Math.round(investor.size * 0.46)
+  const bodyW    = Math.round(investor.size * 0.48)
+  const bodyH    = Math.round(investor.size * 0.68)
+  const handSize = Math.round(investor.size * 0.17)
+  const totalH   = headSize + bodyH
+
   return (
     <div
-      className="absolute z-20 cursor-pointer select-none"
+      className="absolute z-20 cursor-pointer select-none flex flex-col items-center"
       style={{
         left: investor.pos.left, top: investor.pos.top,
         animation: `${investor.floatAnim} ${investor.floatDur} ease-in-out ${investor.floatDelay} infinite`,
@@ -519,9 +605,9 @@ function InvestorBubble({ investor, stats, isSpeaking, isSelected, onClick }: {
       {/* Speech bubble */}
       {isSpeaking && (
         <div
-          className="absolute font-mono text-xs leading-snug rounded-xl px-2.5 py-1.5 max-w-[140px] whitespace-normal"
+          className="absolute font-mono leading-snug rounded-xl px-2.5 py-1.5 max-w-[140px] whitespace-normal"
           style={{
-            bottom: investor.size + 14, left: '50%', transform: 'translateX(-50%)',
+            bottom: totalH + 12, left: '50%', transform: 'translateX(-50%)',
             background: `${investor.color}18`, border: `1px solid ${investor.color}40`,
             color: investor.color, animation: 'slide-up 0.3s ease-out',
             fontSize: '9px',
@@ -532,33 +618,69 @@ function InvestorBubble({ investor, stats, isSpeaking, isSelected, onClick }: {
         </div>
       )}
 
-      {/* Bobble */}
-      <div style={{ animation: `bobble ${investor.bobbleDur} ease-in-out ${investor.bobbleDelay} infinite` }}>
+      {/* Fire — shown when angry/skeptical */}
+      {stats.mood === 'skeptical' && (
+        <div style={{ fontSize: headSize * 0.55, lineHeight: 1, animation: 'fire-flicker 0.6s ease-in-out infinite', zIndex: 3, marginBottom: -4, userSelect: 'none' }}>
+          🔥
+        </div>
+      )}
+
+      {/* Head — bobs wildly */}
+      <div style={{ animation: `bobble ${investor.bobbleDur} ease-in-out ${investor.bobbleDelay} infinite`, zIndex: 2, marginBottom: -5 }}>
         <div
-          className="relative rounded-full flex items-center justify-center transition-all duration-400"
+          className="relative rounded-full flex items-center justify-center"
           style={{
-            width: investor.size, height: investor.size,
-            background: `radial-gradient(circle at 30% 28%, ${investor.color}28, ${investor.color}08)`,
-            border: `2px solid ${investor.color}${isSelected ? 'CC' : isSpeaking ? 'AA' : '55'}`,
-            backdropFilter: 'blur(10px)',
-            transform: isSelected ? 'scale(1.12)' : 'scale(1)',
-            boxShadow: isSelected
-              ? `0 0 24px ${investor.color}50`
-              : isSpeaking
-              ? `0 0 16px ${investor.color}35`
-              : `0 0 8px ${investor.color}15`,
+            width: headSize, height: headSize,
+            background: `radial-gradient(circle at 32% 28%, ${investor.color}50, ${investor.color}15)`,
+            border: `2px solid ${investor.color}${isSelected ? 'DD' : isSpeaking ? 'BB' : '80'}`,
+            backdropFilter: 'blur(8px)',
+            boxShadow: isSelected ? `0 0 18px ${investor.color}70` : isSpeaking ? `0 0 12px ${investor.color}50` : `0 0 6px ${investor.color}25`,
           }}
         >
-          <BobbleFace mood={stats.mood} color={investor.color} size={investor.size - 14} />
+          <BobbleFace mood={stats.mood} color={investor.color} size={headSize - 4} />
           {isSpeaking && (
             <div className="absolute inset-0 rounded-full pointer-events-none"
               style={{ border: `2px solid ${investor.color}`, animation: 'speaking-ring 1.2s ease-in-out infinite', color: investor.color }} />
           )}
         </div>
-        <div className="text-center mt-1.5">
-          <div className="font-mono font-bold" style={{ color: investor.color, fontSize: '9px', lineHeight: 1 }}>{investor.name}</div>
-          <div className="font-mono mt-0.5" style={{ color: `${investor.color}65`, fontSize: '7px', lineHeight: 1 }}>{investor.role}</div>
-        </div>
+      </div>
+
+      {/* Body row: left hand + slim oval body + right hand */}
+      <div className="relative flex items-center justify-center" style={{ width: bodyW + (handSize + 5) * 2, height: bodyH }}>
+        {/* Left hand */}
+        <div className="absolute rounded-full" style={{
+          width: handSize, height: handSize,
+          left: 0, top: '36%',
+          background: `radial-gradient(circle at 30% 30%, ${investor.color}45, ${investor.color}12)`,
+          border: `1.5px solid ${investor.color}65`,
+        }} />
+
+        {/* Slim oval body */}
+        <div
+          className="rounded-full transition-all duration-400"
+          style={{
+            width: bodyW, height: bodyH,
+            background: `radial-gradient(circle at 35% 25%, ${investor.color}28, ${investor.color}07)`,
+            border: `2px solid ${investor.color}${isSelected ? 'BB' : isSpeaking ? '88' : '45'}`,
+            backdropFilter: 'blur(10px)',
+            transform: isSelected ? 'scale(1.08)' : 'scale(1)',
+            boxShadow: isSelected ? `0 0 28px ${investor.color}45` : isSpeaking ? `0 0 18px ${investor.color}28` : `0 0 8px ${investor.color}12`,
+          }}
+        />
+
+        {/* Right hand */}
+        <div className="absolute rounded-full" style={{
+          width: handSize, height: handSize,
+          right: 0, top: '36%',
+          background: `radial-gradient(circle at 30% 30%, ${investor.color}45, ${investor.color}12)`,
+          border: `1.5px solid ${investor.color}65`,
+        }} />
+      </div>
+
+      {/* Name tag */}
+      <div className="text-center mt-1.5">
+        <div className="font-mono font-bold" style={{ color: investor.color, fontSize: '9px', lineHeight: 1 }}>{investor.name}</div>
+        <div className="font-mono mt-0.5" style={{ color: `${investor.color}65`, fontSize: '7px', lineHeight: 1 }}>{investor.role}</div>
       </div>
     </div>
   )

@@ -15,7 +15,8 @@ import { createDefaultAvatars } from "./services/avatars.mjs";
 import {
   evaluateAnswer,
   generateFinalReport,
-  generatePitchPackage
+  generatePitchPackage,
+  generateSocialPostText
 } from "./services/memoirAdapter.mjs";
 import { createAvatar, speak } from "./services/replicasAdapter.mjs";
 import {
@@ -222,6 +223,17 @@ async function finalizeHandler(_req, res, sessionId) {
   });
 }
 
+async function socialPostsHandler(_req, res, sessionId) {
+  const session = await getSession(sessionId);
+  if (!session) return sendJson(res, 404, { error: "Session not found" });
+
+  const posts = await generateSocialPostText(
+    toStartupContext(session.startup),
+    session.generatedPitch
+  );
+  sendJson(res, 200, posts);
+}
+
 async function createAvatarHandler(req, res) {
   const body = await readJson(req);
   assertRequired(body, ["role", "displayName", "persona"]);
@@ -283,6 +295,11 @@ async function route(req, res) {
   const finalizeMatch = url.pathname.match(/^\/api\/sessions\/([^/]+)\/finalize$/);
   if (req.method === "POST" && finalizeMatch) {
     return finalizeHandler(req, res, finalizeMatch[1]);
+  }
+
+  const socialPostsMatch = url.pathname.match(/^\/api\/sessions\/([^/]+)\/social-posts$/);
+  if (req.method === "POST" && socialPostsMatch) {
+    return socialPostsHandler(req, res, socialPostsMatch[1]);
   }
 
   if (req.method === "POST" && url.pathname === "/api/avatars/create") {
