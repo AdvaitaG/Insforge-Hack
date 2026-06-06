@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useParams } from 'next/navigation'
 
-const API_BASE = 'http://localhost:8787'
+const API_BASE = '/backend'
 
 const COMPANY = {
   name: 'FlowDesk',
