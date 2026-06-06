@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation'
 import { InvestorType, Session, AvatarRole } from '@/lib/types'
 import { MOCK_SESSION } from '@/lib/mockData'
 import { useReplicasAvatar } from '@/lib/hooks/useReplicasAvatar'
+import { personaForRole } from '@/adapters/replicas'
 
 type RoomStage = 'pitch' | 'q1' | 'q2' | 'q3' | 'done'
 
@@ -137,7 +138,13 @@ export default function RoomPage() {
         <div className="flex-1 flex flex-col border-r border-border">
           {/* Avatar stage — doniv: embed Replicas avatar here */}
           <div className="flex-1 bg-stage flex flex-col items-center justify-center relative">
-            <AvatarStage stage={stage} activeInvestor={activeInvestor} companyName={companyName} pitch={session.pitch} />
+            <AvatarStage
+              stage={stage}
+              activeInvestor={activeInvestor}
+              companyName={companyName}
+              pitch={session.pitch}
+              currentQuestion={currentQ?.question}
+            />
           </div>
 
           {/* Transcript */}
@@ -277,16 +284,24 @@ function StageIndicator({ stage }: { stage: RoomStage }) {
   )
 }
 
+const TITLE_TO_ROLE: Record<string, AvatarRole> = {
+  'Skeptical Partner': 'skeptical_partner',
+  'Technical Partner': 'technical_partner',
+  'Growth Partner': 'growth_partner',
+}
+
 function AvatarStage({
   stage,
   activeInvestor,
   companyName,
   pitch,
+  currentQuestion,
 }: {
   stage: RoomStage
   activeInvestor: { name: string; title: string; color: string } | null
   companyName: string
   pitch?: string
+  currentQuestion?: string
 }) {
   const isPitch = stage === 'pitch'
   const speaker = isPitch
@@ -295,57 +310,64 @@ function AvatarStage({
     ? { name: activeInvestor.name, subtitle: activeInvestor.title, color: activeInvestor.color }
     : null
 
+  // Stable primitives that identify the current speaker + what they should say.
+  const role: AvatarRole = isPitch
+    ? 'founder'
+    : TITLE_TO_ROLE[activeInvestor?.title ?? ''] ?? 'skeptical_partner'
+  const speakText = isPitch ? pitch ?? '' : currentQuestion ?? ''
+  const displayName = speaker?.name ?? 'Founder'
+
   const { avatarSession, isLoading, isMock, createAvatar, speak } = useReplicasAvatar()
 
-  // Create avatar when speaker changes
+  // Create the avatar whenever the active speaker (role) changes.
+  // Keyed on `role` only so it runs once per speaker, not every render.
   useEffect(() => {
-    if (speaker) {
-      const role: AvatarRole = isPitch ? 'founder' : 
-        activeInvestor?.title === 'Skeptical Partner' ? 'skeptical_partner' :
-        activeInvestor?.title === 'Technical Partner' ? 'technical_partner' : 'growth_partner'
-      
-      createAvatar({
-        role,
-        displayName: speaker.name,
-        persona: isPitch 
-          ? 'Confident technical founder presenting a crisp 60-second Demo Day pitch.'
-          : `Experienced ${activeInvestor?.title.toLowerCase() || 'investor'} asking sharp, relevant questions about the startup.`
-      })
-    }
-  }, [speaker, isPitch, activeInvestor, createAvatar])
+    if (stage === 'done') return
+    createAvatar({ role, displayName, persona: personaForRole(role) })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [role, stage])
 
-  // Make avatar speak when pitch is available and we're in pitch stage
+  // Once the avatar exists, have it speak the founder pitch / investor question.
   useEffect(() => {
-    if (isPitch && pitch && avatarSession && !isLoading) {
-      speak(pitch)
-    }
-  }, [isPitch, pitch, avatarSession, isLoading, speak])
+    if (stage === 'done') return
+    if (!avatarSession?.providerAvatarId) return
+    if (!speakText) return
+    speak(speakText)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [avatarSession?.providerAvatarId, speakText, stage])
+
+  const isSpeaking = avatarSession?.status === 'speaking'
 
   return (
     <>
-      {/* Replicas avatar embed or fallback */}
+      {/* Replicas avatar embed when a real provider returns one; otherwise the
+          simulated avatar tile that keeps the live room working. */}
       {avatarSession?.embedUrl ? (
-        <div className="w-56 h-56 rounded-2xl overflow-hidden border-2" style={{ borderColor: speaker?.color ?? '#1E1E2E' }}>
-          <iframe 
-            src={avatarSession.embedUrl} 
+        <div
+          className="w-56 h-56 rounded-2xl overflow-hidden border-2"
+          style={{ borderColor: speaker?.color ?? '#1E1E2E' }}
+        >
+          <iframe
+            src={avatarSession.embedUrl}
             className="w-full h-full"
             allow="autoplay; encrypted-media"
-            title={`${speaker?.name} Avatar`}
+            title={`${displayName} avatar`}
           />
         </div>
       ) : (
         <div
-          className="w-56 h-56 rounded-2xl border-2 flex items-center justify-center"
-          style={{ borderColor: speaker?.color ?? '#1E1E2E', backgroundColor: `${speaker?.color ?? '#1E1E2E'}10` }}
+          className="w-56 h-56 rounded-2xl border-2 flex items-center justify-center transition-all duration-500"
+          style={{
+            borderColor: speaker?.color ?? '#1E1E2E',
+            backgroundColor: `${speaker?.color ?? '#1E1E2E'}10`,
+            boxShadow: isSpeaking ? `0 0 40px ${speaker?.color ?? '#1E1E2E'}55` : 'none',
+          }}
         >
           {isLoading ? (
-            <div className="text-center">
-              <div className="w-8 h-8 border-2 border-amber border-t-transparent rounded-full animate-spin mx-auto mb-2" />
-              <div className="font-mono text-xs text-muted">Loading avatar...</div>
-            </div>
+            <div className="w-8 h-8 border-2 border-amber border-t-transparent rounded-full animate-spin" />
           ) : (
             <span className="font-display text-7xl" style={{ color: speaker?.color ?? '#3E3E52' }}>
-              {speaker?.name?.[0] ?? '?'}
+              {displayName[0] ?? '?'}
             </span>
           )}
         </div>
@@ -357,10 +379,18 @@ function AvatarStage({
             className="inline-flex items-center gap-2 bg-void/80 backdrop-blur border rounded px-3 py-2"
             style={{ borderColor: `${speaker.color}40` }}
           >
-            <span className="w-1.5 h-1.5 rounded-full animate-pulse-live" style={{ backgroundColor: speaker.color }} />
+            <span
+              className="w-1.5 h-1.5 rounded-full animate-pulse-live"
+              style={{ backgroundColor: speaker.color }}
+            />
             <span className="font-mono text-sm text-snow">{speaker.name}</span>
-            <span className="font-mono text-xs" style={{ color: speaker.color }}>{speaker.subtitle}</span>
-            {isMock && <span className="font-mono text-xs text-dim ml-2">(Mock)</span>}
+            <span className="font-mono text-xs" style={{ color: speaker.color }}>
+              {speaker.subtitle}
+            </span>
+            <span className="font-mono text-xs text-dim ml-2">
+              {isSpeaking ? 'speaking' : isLoading ? 'loading' : 'ready'}
+              {isMock ? ' · sim' : ''}
+            </span>
           </div>
         </div>
       )}

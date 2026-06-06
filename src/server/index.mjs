@@ -271,14 +271,23 @@ async function finalizeHandler(_req, res, sessionId) {
   });
 }
 
-async function socialPostsHandler(_req, res, sessionId) {
-  const session = await getSession(sessionId);
-  if (!session) return sendJson(res, 404, { error: "Session not found" });
+const DEMO_CONTEXT = {
+  companyName: "FlowDesk",
+  description: "AI-powered support that resolves 80% of tickets before a human sees them.",
+  targetCustomer: "Heads of Support Engineering at Series A SaaS companies",
+  problem: "Support teams drown in repetitive tickets and lose context across tools.",
+  solution: "An AI agent that reads your codebase, docs, and integrations to resolve tickets with full context.",
+  whyNow: "Retrieval-augmented LLMs are finally accurate enough for production support."
+};
 
-  const posts = await generateSocialPostText(
-    toStartupContext(session.startup),
-    session.generatedPitch
-  );
+async function socialPostsHandler(_req, res, sessionId) {
+  // Resilient: if the session is not persisted (e.g. the demo/sample id),
+  // fall back to the FlowDesk sample context so the social tab always renders.
+  const session = await getSession(sessionId);
+  const context = session?.startup ? toStartupContext(session.startup) : DEMO_CONTEXT;
+  const pitch = session?.generatedPitch || "";
+
+  const posts = await generateSocialPostText(context, pitch);
   sendJson(res, 200, posts);
 }
 
@@ -286,13 +295,16 @@ async function investorResponseHandler(req, res) {
   const body = await readJson(req);
   assertRequired(body, ["message"]);
 
-  let context = {};
+  let context = null;
   if (body.sessionId) {
     const session = await getSession(body.sessionId);
     if (session?.startup) context = toStartupContext(session.startup);
-  } else if (body.context) {
+  }
+  if (!context && body.context && Object.keys(body.context).length > 0) {
     context = body.context;
   }
+  // Fall back to the FlowDesk sample so Gemini always answers in-context.
+  if (!context) context = DEMO_CONTEXT;
 
   const response = await generateInvestorResponse({
     context,
