@@ -2,7 +2,15 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { useParams } from 'next/navigation'
-import { MOCK_FINAL_REPORT, MOCK_SESSION } from '@/lib/mockData'
+
+const COMPANY = {
+  name: 'FlowDesk',
+  tagline: 'AI-powered support that resolves 80% of tickets before a human sees them.',
+  repo: 'flowdesk/flowdesk',
+  mrr: '$18,000',
+  customers: 12,
+  nrr: '118%',
+}
 
 type Tab = 'social' | 'demoday'
 
@@ -14,16 +22,16 @@ const INVESTORS = [
     name: 'Paul G.',
     role: 'YC Founder',
     trait: 'thoughtful',
-    color: '#F0A500',
+    color: '#FF6100',
     size: 72,
     floatAnim: 'float-1',
     floatDur: '11s',
     floatDelay: '0s',
     pos: { left: '12%', top: '18%' },
     questions: [
-      'What do people do when your product breaks?',
-      'Who are your first 10 users, and how did you find them?',
-      'What insight are you working from that others are missing?',
+      'Zendesk has been trying to bolt on AI for years. Why does FlowDesk win?',
+      'What happens when your AI gives a wrong answer and a customer churns over it?',
+      'What is the insight that makes 80% resolution rate possible when others are at 30%?',
     ],
   },
   {
@@ -38,9 +46,9 @@ const INVESTORS = [
     floatDelay: '1.2s',
     pos: { left: '74%', top: '12%' },
     questions: [
-      'This is another AI wrapper. Why won\'t it just die?',
-      'Your total addressable market number is made up. All of it.',
-      'Name one paying customer. Just one.',
+      'Every SaaS founder says their support problem is unique. It isn\'t. Why are you different?',
+      'OpenAI ships Zendesk integration tomorrow. You\'re dead. Go.',
+      '$18k MRR after how many months? That\'s not traction, that\'s a side project.',
     ],
   },
   {
@@ -55,9 +63,9 @@ const INVESTORS = [
     floatDelay: '2.5s',
     pos: { left: '80%', top: '60%' },
     questions: [
-      'What\'s your week-over-week growth rate right now?',
-      'Walk me through what retention looks like after month one.',
-      'What happens to your unit economics at scale?',
+      'Your 118% NRR is the one clean number here. Walk me through how you got it.',
+      'What does CAC look like and how does it change as you move upmarket?',
+      'At what ACV does this business become venture-scale?',
     ],
   },
   {
@@ -126,35 +134,35 @@ const FOUNDER_RESPONSES = [
 
 const SOCIAL_POSTS = {
   x: {
-    handle: '@pitchmirror',
-    name: 'PitchMirror',
+    handle: '@flowdesk_ai',
+    name: 'FlowDesk',
     time: '2h',
-    text: `We built a thing for founders:\n\nAI Demo Day simulator that actually talks back like a YC partner.\n\nEnter your startup → 60-second pitch generated → three AI investor replicas ask the hard questions → your pitch gets rewritten based on your weakest answers.\n\nBuilt in 4 hours. Live today.`,
-    likes: 847,
-    retweets: 234,
-    replies: 92,
+    text: `We just hit $18k MRR.\n\nHere's what we've learned building AI support infrastructure for SaaS:\n\nThe problem isn't that support is slow. It's that support agents don't know your product.\n\nFlowDesk reads your GitHub, your Notion, your error logs. It knows what broke before your customer finishes typing.\n\n80% resolution rate. 8-second avg response. Thread 🧵`,
+    likes: 1243,
+    retweets: 389,
+    replies: 147,
   },
   linkedin: {
-    name: 'PitchMirror Team',
-    headline: 'Building AI Demo Day practice for founders',
-    time: '2 hours ago',
-    text: `Every founder practices their pitch. Almost none of them practice the Q&A.\n\nWe built PitchMirror to fix that.\n\nYou enter your startup context. We generate a YC-style pitch, a founder avatar presents it, then three AI investor partners grill you on market, product, and distribution.\n\nAfter the session you get a readiness score, a rewritten pitch, and a full launch kit.\n\nBuilt at InsForge Hackathon. Live today.`,
-    likes: 1240,
-    comments: 84,
+    name: 'Priya Nair',
+    headline: 'CEO at FlowDesk · ex-Stripe Support Engineering',
+    time: '3 hours ago',
+    text: `I spent 6 years at Stripe watching brilliant engineers get woken up at 2am to answer support tickets that any AI should have handled.\n\nThat's why we built FlowDesk.\n\nIt connects to your codebase, your docs, your Stripe account. When a ticket arrives, it already knows what's wrong and how to fix it.\n\n12 paying customers. $18k MRR. 118% NRR.\n\nWe're just getting started.`,
+    likes: 2810,
+    comments: 134,
   },
   hn: {
-    points: 847,
-    title: 'Show HN: PitchMirror – AI Demo Day simulator with investor avatars and pitch rewriting',
-    text: `Built this at a hackathon over 4 hours. You paste your GitHub repo, it reads your README, generates a 60-second pitch, then three AI investors ask hard questions. After Q&A it scores your session and rewrites the pitch. Stack: Next.js, InsForge, Replicas for avatars, Memoir for content generation.`,
-    submitter: 'ycfounder',
-    time: '2 hours ago',
-    comments: 142,
+    points: 1204,
+    title: 'Show HN: FlowDesk – AI support that reads your codebase and resolves 80% of tickets automatically',
+    text: `We built FlowDesk after watching support costs at a Series A company 3x in 12 months with no improvement in CSAT. The core insight: most support tools treat every ticket as unknown. We treat every ticket as a known problem we haven't seen from this customer yet. Stack: Python/FastAPI, Claude API with custom retrieval, GitHub/Notion/Linear integrations.`,
+    submitter: 'priya_nair',
+    time: '5 hours ago',
+    comments: 287,
   },
   ph: {
-    upvotes: 312,
-    name: 'PitchMirror',
-    tagline: 'The AI Demo Day room that asks the questions VCs actually ask.',
-    description: `Practice your Demo Day pitch against AI investor replicas. Enter your startup context, get a polished 60-second pitch, then face three investor personas who ask hard questions about market, technical depth, and growth.\n\nAfter the session: readiness score + rewritten pitch + full launch content package.`,
+    upvotes: 847,
+    name: 'FlowDesk',
+    tagline: 'AI support that resolves 80% of tickets before a human ever sees them.',
+    description: `FlowDesk connects to your GitHub, Notion, Stripe, and product database. When a ticket arrives, it already knows what's wrong.\n\n→ 80% automated resolution rate\n→ 8-second average response time\n→ Full context handoff for the remaining 20%\n\nBuilt for B2B SaaS companies. Integrates in 15 minutes.`,
     badge: '#1 Product of the Day',
   },
 }
@@ -164,7 +172,7 @@ const SOCIAL_POSTS = {
 export default function DashboardPage() {
   const params = useParams()
   const [tab, setTab] = useState<Tab>('social')
-  const session = MOCK_SESSION
+  const session = { startupId: COMPANY.repo }
 
   return (
     <div className="h-screen bg-void flex flex-col overflow-hidden">
@@ -173,7 +181,8 @@ export default function DashboardPage() {
         <div className="flex items-center gap-4">
           <span className="font-display text-amber tracking-widest text-sm">YCSIM</span>
           <span className="text-dim font-mono text-xs">·</span>
-          <span className="font-mono text-xs text-muted">{session.startupId}</span>
+          <span className="font-mono text-xs text-muted">{COMPANY.repo}</span>
+          <span className="font-mono text-xs text-dim hidden md:block">— {COMPANY.tagline.slice(0, 50)}...</span>
         </div>
 
         <div className="flex gap-1 bg-surface rounded-lg p-1 border border-border">
@@ -441,9 +450,8 @@ function DemoDayTab() {
               animation: 'center-pulse 3s ease-in-out infinite',
             }}
           >
-            <span className="font-display text-amber text-lg leading-none">YC</span>
-            <span className="font-display text-amber text-lg leading-none">SIM</span>
-            <span className="font-mono text-xs text-amber/50 mt-1">you</span>
+            <span className="font-display text-amber text-base leading-tight text-center px-2">{COMPANY.name}</span>
+            <span className="font-mono text-amber/50 mt-0.5 text-center px-1" style={{fontSize:'7px'}}>{COMPANY.mrr} MRR</span>
           </div>
         </div>
 

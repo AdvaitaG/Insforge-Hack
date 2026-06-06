@@ -77,19 +77,22 @@ Minimum shippable version:
 
 ### eshwar Needs To Build
 
-Wire trymemoir.ai into:
+Wire Gemini into:
 
 ```text
 src/server/services/memoirAdapter.mjs
 ```
 
-Replace the mock functions with real trymemoir.ai calls while preserving the exact returned JSON shape.
+Memoir is no longer the generation layer. Use Gemini directly for all LLM calls. Preserve the exact function names and return shapes — the backend already calls these at the right moments.
 
 Functions to implement:
 
-- `generatePitchPackage(context)`
-- `evaluateAnswer(input)`
-- `generateFinalReport(input)`
+- `generatePitchPackage(context)` — Gemini call, returns pitch + questions + launch asset text
+- `evaluateAnswer(input)` — Gemini call, returns score + feedback + stronger answer
+- `generateFinalReport(input)` — Gemini call, returns readiness score + rewritten pitch + launch assets
+- `generateSocialPostText(context, pitch)` — Gemini call, returns x_thread, linkedin_post, hacker_news_post, product_hunt_tagline, product_hunt_description as structured JSON
+
+Memoir trend analysis: stub function that returns mock data for now. Wire real Memoir call if Maanav ships the trend API before demo.
 
 Do not change route contracts unless everyone agrees.
 
@@ -97,7 +100,7 @@ Minimum shippable version:
 
 - Generate a real 60-second pitch.
 - Generate exactly three investor questions.
-- Generate launch assets.
+- Generate social post text (all five formats).
 - Score one founder answer.
 - Rewrite the pitch during finalization.
 
@@ -186,11 +189,14 @@ Done:
 
 Remaining:
 
-1. Keep backend running during frontend work.
-2. Help doniv and eshwar debug API shape issues.
-3. Commit and push backend files.
-4. Avoid changing route contracts unless the whole team agrees.
-5. Optional: help deploy if time allows.
+1. Add `GEMINI_API_KEY` to backend environment and create a shared `gemini.mjs` client in `src/server/services/` that eshwar's adapter can import.
+2. Add image generation — call an image gen API (Gemini Imagen or similar) with each social post's text, store the result URL in `launch_assets` alongside the text content.
+3. Load founder persona context — query the person database for voice/speaking instructions and pass them as a system prompt prefix into `generatePitchPackage` calls so the pitch sounds like the founder.
+4. Keep backend running during frontend work.
+5. Help doniv and eshwar debug API shape issues.
+6. Commit and push backend files.
+7. Avoid changing route contracts unless the whole team agrees.
+8. Optional: help deploy if time allows.
 
 ### Tables
 
@@ -469,7 +475,7 @@ Required fallback for judging:
 
 ### Sponsor Focus
 
-trymemoir.ai: promotion, marketing narrative, pitch generation, founder voice, launch assets.
+Gemini: pitch generation, answer evaluation, social post text, final report. Memoir trend analysis (optional, wire stub now, real call if Maanav ships it).
 
 ### Core Responsibility
 
@@ -477,14 +483,17 @@ Make the generated content strong. eshwar owns the marketing brain of the produc
 
 ### Build Tasks
 
-1. Replace mock logic inside `src/server/services/memoirAdapter.mjs`.
+1. Replace mock logic inside `src/server/services/memoirAdapter.mjs` with Gemini calls.
 2. Preserve the existing function names and return shapes.
 3. Generate 60-second YC-style pitch.
 4. Generate product positioning.
 5. Generate exactly three investor questions.
-6. Generate answer feedback.
-7. Generate rewritten pitch after Q&A.
-8. Generate final promotion package.
+6. Generate social post text for all five formats (X, LinkedIn, HN, Product Hunt tagline, Product Hunt description).
+7. Generate answer feedback and score.
+8. Generate rewritten pitch after Q&A.
+9. Stub Memoir trend analysis — returns mock data, real call if API becomes available.
+
+Advaita handles: Gemini client setup, image generation for social posts, and injecting founder persona context before calling these functions.
 
 ### Backend Files For eshwar
 
@@ -627,24 +636,25 @@ Generated content must:
 - Be specific about user pain.
 - Be optimized for spoken delivery.
 - Be punchy enough for a hackathon demo.
-- Include promotional assets that show trymemoir.ai's value clearly.
+- Include promotional assets that are platform-appropriate (short/punchy for X, narrative for LinkedIn, technical for HN).
 
 ### Fallback Responsibility
 
-If trymemoir.ai is unavailable:
+If Gemini is unavailable or the API key is missing:
 
-- Use a local LLM or static mock response.
+- Fall back to `src/server/services/mockMemoir.mjs` static responses.
 - Keep output structure identical.
 - Make sure Advaita's backend receives the same JSON shape.
 
 ### eshwar Done Criteria
 
-- Pitch generation works.
-- Investor question generation works.
-- Answer feedback works.
+- Pitch generation works via Gemini.
+- Investor question generation works (exactly three).
+- Social post text generation works (all five formats).
+- Answer feedback and score works.
 - Final rewritten pitch works.
-- Promotion package works.
-- Mock fallback works.
+- Memoir trend analysis stub exists (real call if available).
+- Mock fallback works when Gemini key is missing.
 
 ## Shared Frontend Plan
 
@@ -887,4 +897,5 @@ The winning demo is not a perfect product. The winning demo is a believable AI D
 
 - InsForge to run the app.
 - Replicas to create the simulation.
-- trymemoir.ai to generate the promotion and pitch intelligence.
+- Gemini to generate the pitch, investor questions, answer feedback, and launch content.
+- Memoir trend analysis for social context (if available).

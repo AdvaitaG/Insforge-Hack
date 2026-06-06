@@ -37,8 +37,8 @@ input:focus, textarea:focus { box-shadow: 0 0 0 1px #F0A500; }
 }
 
 @keyframes glow-amber {
-  0%, 100% { box-shadow: 0 0 20px rgba(240,165,0,0.2); }
-  50% { box-shadow: 0 0 50px rgba(240,165,0,0.5); }
+  0%, 100% { box-shadow: 0 0 20px rgba(255,97,0,0.2); }
+  50% { box-shadow: 0 0 50px rgba(255,97,0,0.5); }
 }
 
 @keyframes float-1 {
@@ -81,8 +81,8 @@ input:focus, textarea:focus { box-shadow: 0 0 0 1px #F0A500; }
 }
 
 @keyframes center-pulse {
-  0%, 100% { box-shadow: 0 0 40px rgba(240,165,0,0.3), 0 0 0 2px rgba(240,165,0,0.4); }
-  50%       { box-shadow: 0 0 80px rgba(240,165,0,0.6), 0 0 0 4px rgba(240,165,0,0.7); }
+  0%, 100% { box-shadow: 0 0 40px rgba(255,97,0,0.3), 0 0 0 2px rgba(255,97,0,0.4); }
+  50%       { box-shadow: 0 0 80px rgba(255,97,0,0.6), 0 0 0 4px rgba(255,97,0,0.7); }
 }
 
 @keyframes step-in {
