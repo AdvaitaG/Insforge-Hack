@@ -100,12 +100,28 @@ input:focus, textarea:focus { box-shadow: 0 0 0 1px #F0A500; }
   to   { opacity: 1; transform: translateY(0); filter: blur(0); }
 }
 
+@keyframes fire-flicker {
+  0%   { transform: translateY(0px) scale(1) rotate(-4deg); opacity: 0.9; }
+  20%  { transform: translateY(-4px) scale(1.1) rotate(3deg); opacity: 1; }
+  40%  { transform: translateY(-2px) scale(0.95) rotate(-5deg); opacity: 0.85; }
+  60%  { transform: translateY(-5px) scale(1.08) rotate(4deg); opacity: 1; }
+  80%  { transform: translateY(-1px) scale(1.02) rotate(-2deg); opacity: 0.9; }
+  100% { transform: translateY(0px) scale(1) rotate(-4deg); opacity: 0.9; }
+}
+
 @keyframes bobble {
-  0%, 100% { transform: rotate(-4deg); }
-  50%       { transform: rotate(4deg); }
+  0%   { transform: rotate(-18deg) translateX(-2px); }
+  20%  { transform: rotate(14deg) translateX(2px); }
+  40%  { transform: rotate(-16deg) translateX(-1px); }
+  60%  { transform: rotate(20deg) translateX(3px); }
+  80%  { transform: rotate(-12deg) translateX(-2px); }
+  100% { transform: rotate(-18deg) translateX(-2px); }
 }
 
 @keyframes bobble-fast {
-  0%, 100% { transform: rotate(-6deg); }
-  50%       { transform: rotate(6deg); }
+  0%   { transform: rotate(-22deg) translateX(-3px); }
+  25%  { transform: rotate(20deg) translateX(3px); }
+  50%  { transform: rotate(-18deg) translateX(-2px); }
+  75%  { transform: rotate(24deg) translateX(4px); }
+  100% { transform: rotate(-22deg) translateX(-3px); }
 }
