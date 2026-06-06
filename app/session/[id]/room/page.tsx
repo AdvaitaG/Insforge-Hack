@@ -70,7 +70,7 @@ export default function RoomPage() {
   const questions = session.questions ?? []
   const currentQ = stage !== 'pitch' && stage !== 'done' ? questions[STAGE_Q_IDX[stage]] : null
   const activeInvestor = currentQ ? INVESTORS[currentQ.investorType] : null
-  const companyName = session.startupId // Advaita: replace with actual company name once available
+  const companyName = session.startup?.companyName ?? session.startupId
 
   function formatTime(s: number) {
     const m = Math.floor(s / 60)

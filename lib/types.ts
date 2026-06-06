@@ -58,6 +58,7 @@ export type PitchPackage = {
 export type Session = {
   id: string
   startupId: string
+  startup?: Startup
   status: 'generating' | 'ready' | 'in_progress' | 'completed'
   pitch?: string
   oneLiner?: string
