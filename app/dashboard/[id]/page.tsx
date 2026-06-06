@@ -310,12 +310,118 @@ export default function DashboardPage() {
   )
 }
 
+// ─── Social Post Static Data ──────────────────────────────────────────────────
+
+const SOCIAL_POSTS = {
+  x: {
+    handle: '@flowdesk_ai', name: 'FlowDesk', time: '2h',
+    text: `We just hit $18k MRR.\n\nHere's what we've learned building AI support infrastructure for SaaS:\n\nThe problem isn't that support is slow. It's that agents don't know your product.\n\nFlowDesk reads your GitHub, your Notion, your error logs. It knows what broke before your customer finishes typing.\n\n80% resolution rate. 8-second avg response. Thread 🧵`,
+    likes: 1243, retweets: 389, replies: 147,
+  },
+  linkedin: {
+    name: 'Priya Nair', headline: 'CEO at FlowDesk · ex-Stripe Support Engineering', time: '3 hours ago',
+    text: `I spent 6 years at Stripe watching brilliant engineers get woken up at 2am to answer tickets any AI should have handled.\n\nThat's why we built FlowDesk.\n\n12 paying customers. $18k MRR. 118% NRR.\n\nWe're just getting started.`,
+    likes: 2810, comments: 134,
+  },
+  hn: {
+    points: 1204,
+    title: 'Show HN: FlowDesk – AI support that reads your codebase and resolves 80% of tickets automatically',
+    text: `Built this after watching support costs at a Series A company 3x in 12 months. Core insight: most tools treat every ticket as unknown. We treat every ticket as a known problem we haven't seen from this customer yet.`,
+    submitter: 'priya_nair', time: '5 hours ago', comments: 287,
+  },
+  ph: {
+    upvotes: 847, name: 'FlowDesk',
+    tagline: 'AI support that resolves 80% of tickets before a human ever sees them.',
+    description: `FlowDesk connects to your GitHub, Notion, Stripe, and product database. When a ticket arrives, it already knows what's wrong.\n\n→ 80% automated resolution rate\n→ 8-second average response time\n→ Full context handoff for the other 20%`,
+    badge: '#1 Product of the Day',
+  },
+}
+
 // ─── Social Tab ───────────────────────────────────────────────────────────────
 
 type Platform = 'x' | 'linkedin' | 'hn' | 'ph' | 'instagram'
 const PLATFORM_LABELS: Record<Platform, string> = {
   x: 'X / Twitter', linkedin: 'LinkedIn', hn: 'Hacker News', ph: 'Product Hunt', instagram: 'Instagram'
 }
+
+type SimComment = {
+  id: string; author: string; handle?: string; title?: string
+  badge?: string | null; timeAgo: string; text: string
+  likes?: number; replies?: number; points?: number; isFounder?: boolean
+}
+
+const SIMULATED_COMMENTS: Record<string, SimComment[]> = {
+  x: [
+    { id: 'x1', author: 'Lena Park', handle: '@lenapark_dev', timeAgo: '1h', text: 'We tried building this in-house at our Series A. Took 4 months, still broken. This makes me feel seen.', likes: 312, replies: 14 },
+    { id: 'x2', author: 'Marcus T.', handle: '@mtoliver', timeAgo: '1h', text: 'The 80% claim sounds high. What\'s the methodology? Asking because I\'ve seen a lot of inflated numbers in this space.', likes: 87, replies: 22 },
+    { id: 'x3', author: 'YC Alumni', handle: '@ycalumni', timeAgo: '2h', text: 'Adding to our weekly AI tools thread. Strong metrics for early stage.', likes: 445, replies: 8 },
+    { id: 'x4', author: 'Maya R.', handle: '@mayar_pm', timeAgo: '2h', text: 'Is there a waitlist? Our support volume doubled after our last launch and we\'re drowning.', likes: 201, replies: 5 },
+    { id: 'x5', author: 'Dev Skeptic', handle: '@notanotheraisaas', timeAgo: '3h', text: 'Another "80%" AI product. I\'ll believe it when I see a live demo with a real ticket.', likes: 34, replies: 41 },
+    { id: 'x6', author: 'FlowDesk', handle: '@flowdesk_ai', timeAgo: '2h', text: '@notanotheraisaas DM us. We\'ll run your last 50 tickets live. No prep, no cherry picking.', likes: 892, replies: 67, isFounder: true },
+  ],
+  linkedin: [
+    { id: 'l1', author: 'Rahul Mehta', title: 'VP Engineering · Notion', timeAgo: '2h', text: 'The cost-per-ticket economics are genuinely disruptive. We\'ve been evaluating similar tools and nothing comes close on resolution rate.', likes: 847 },
+    { id: 'l2', author: 'Sarah Chen', title: 'Head of Support · Figma', timeAgo: '2h', text: 'The thing that doesn\'t get said enough: the escalation handoff. Context summary alone saves my team 20 minutes per ticket.', likes: 612 },
+    { id: 'l3', author: 'Tom Wallace', title: 'Partner · Sequoia', timeAgo: '3h', text: 'The NRR is the signal. 118% means customers are discovering value they didn\'t expect. That\'s the product doing the selling.', likes: 1204 },
+    { id: 'l4', author: 'Priya Nair', title: 'CEO · FlowDesk', timeAgo: '1h', text: 'Thank you all — special thanks to the team at Linear who gave us brutal early feedback that made the product 10x better.', likes: 2100, isFounder: true },
+  ],
+  hn: [
+    { id: 'h1', author: 'jmathai', timeAgo: '4h', points: 312, text: 'The retrieval architecture is the interesting part. Per-customer indexes or a shared embedding space? Former is more accurate but operationally painful at scale.' },
+    { id: 'h2', author: 'throwaway_cto', timeAgo: '4h', points: 201, text: 'We evaluated 6 AI support tools over 3 months. FlowDesk was the only one that could handle multi-turn conversations where the user\'s question changed mid-thread.' },
+    { id: 'h3', author: 'skepticaluser99', timeAgo: '5h', points: 88, text: '"80% resolution rate" — methodology please. What counts as resolved? Does the user confirm or does timeout = resolved?' },
+    { id: 'h4', author: 'priya_nair', timeAgo: '4h', points: 445, text: 'Founder here. Per-customer indexes. Resolved = user closes ticket or doesn\'t reopen within 48h. ~73% confirmed by user. Happy to share the full writeup.', isFounder: true },
+    { id: 'h5', author: 'vc_lurker', timeAgo: '5h', points: 67, text: 'This is either the next Zendesk or dead in 18 months when Anthropic ships a native support agent. No middle ground.' },
+    { id: 'h6', author: 'distributed_sys', timeAgo: '3h', points: 178, text: 'The GitHub integration is the killer feature nobody\'s talking about. Knowing the error is from a deploy 3h ago changes the entire resolution path.' },
+  ],
+  ph: [
+    { id: 'p1', author: 'James L.', badge: 'Top Hunter', timeAgo: '3h', text: 'Hunted this after seeing the Stripe reference. Priya\'s background is perfect founder-market fit. Congrats! 🎉', likes: 234 },
+    { id: 'p2', author: 'Ana V.', badge: null, timeAgo: '3h', text: 'How does custom model fine-tuning work at the $2,499 tier? Trained on our tickets or just docs?', likes: 89 },
+    { id: 'p3', author: 'FlowDesk Team', badge: 'Maker', timeAgo: '2h', text: 'At the top tier we fine-tune on your anonymized resolved tickets + full documentation corpus. It learns patterns specific to your product, not generic FAQ.', likes: 312, isFounder: true },
+    { id: 'p4', author: 'Ben K.', badge: null, timeAgo: '4h', text: 'Been using this 2 months. The ROI calculator told me we\'d save $180k/year. Then it actually delivered. Wild.', likes: 567 },
+    { id: 'p5', author: 'Sam R.', badge: null, timeAgo: '2h', text: 'Does it work with Discord-based support? A lot of dev-focused companies run support there.', likes: 45 },
+  ],
+  instagram: [
+    { id: 'i1', author: 'techfounder_vc', timeAgo: '1h', text: '🔥 this is exactly what we\'ve been looking for', likes: 847 },
+    { id: 'i2', author: 'saas_operators', timeAgo: '2h', text: 'shipping this to our portfolio immediately 📦', likes: 423 },
+    { id: 'i3', author: 'build_in_public', timeAgo: '2h', text: 'love seeing real MRR numbers, so refreshing 🙌', likes: 312 },
+    { id: 'i4', author: 'ycombinator', timeAgo: '3h', text: '118% NRR says everything.', likes: 2100 },
+  ],
+}
+
+const MANAGER_TIPS = [
+  {
+    category: 'Niches to target', icon: '🎯', color: '#FF6100',
+    tips: [
+      'Series A SaaS with 2–15 person support teams — feel the pain, have the budget',
+      'Developer tool companies: high ticket complexity, zero tolerance for slow support',
+      'Vertical SaaS (fintech, legal tech) where AI context is a compliance advantage',
+    ]
+  },
+  {
+    category: 'Content that converts', icon: '📣', color: '#00B4D8',
+    tips: [
+      '"4.2 hours → 9 seconds" as a standalone graphic — stats like this go viral on X',
+      'HN Show HN with methodology transparency: publish your resolution rate data openly',
+      'LinkedIn long-form from the founder\'s POV performs 3× better than brand posts',
+    ]
+  },
+  {
+    category: 'Engagement tactics', icon: '🔁', color: '#06D6A0',
+    tips: [
+      'Reply to every negative comment publicly — turns skeptics into live proof points',
+      '"Run your last 50 tickets free" converts skeptical threads to demo calls instantly',
+      'Share 1 anonymized resolved ticket/week showing the AI reasoning chain',
+    ]
+  },
+  {
+    category: 'Platform priority', icon: '📊', color: '#A855F7',
+    tips: [
+      'X/Twitter: highest founder-to-VC reach, post 3×/week minimum for algorithm',
+      'HN: one well-timed Show HN can drive 500+ signups — invest in the writeup',
+      'LinkedIn: founder\'s personal brand > company page, push all content through them',
+    ]
+  },
+]
 
 function SocialTab({ sessionId }: { sessionId?: string }) {
   const [active, setActive] = useState<Platform>('x')
@@ -351,151 +457,350 @@ function SocialTab({ sessionId }: { sessionId?: string }) {
           {loading ? 'generating with gemini...' : posts ? 'generated · not posted' : 'gemini · not posted'}
         </div>
       </div>
-      <div className="flex-1 overflow-y-auto px-6 py-6 flex flex-col items-center">
-        {loading ? (
-          <div className="flex flex-col items-center justify-center h-full gap-4">
-            <div className="w-8 h-8 rounded-full border-2 border-amber border-t-transparent animate-spin" />
-            <div className="font-mono text-xs text-dim">Generating 3 posts + images per platform...</div>
-          </div>
-        ) : (
-          <div className="w-full max-w-lg space-y-4" key={`${active}-${idx}`} style={{ animation: 'fade-in 0.3s ease-out' }}>
-            {currentPosts.length > 1 && (
-              <div className="flex items-center justify-between">
-                <div className="flex gap-1.5">
-                  {currentPosts.map((_, i) => (
-                    <button key={i} onClick={() => setIdx(i)}
-                      className="rounded-full transition-all duration-200"
-                      style={{ width: i === idx ? 20 : 8, height: 8, background: i === idx ? '#FF6100' : '#3E3E52' }} />
-                  ))}
-                </div>
-                <div className="flex gap-1">
-                  <button onClick={() => setIdx(Math.max(0, idx - 1))} disabled={idx === 0}
-                    className="font-mono text-xs px-2 py-1 rounded border border-border text-muted disabled:opacity-30 hover:border-amber transition-colors">←</button>
-                  <button onClick={() => setIdx(Math.min(currentPosts.length - 1, idx + 1))} disabled={idx >= currentPosts.length - 1}
-                    className="font-mono text-xs px-2 py-1 rounded border border-border text-muted disabled:opacity-30 hover:border-amber transition-colors">→</button>
-                </div>
-              </div>
-            )}
-            {currentPosts.length > 0 ? (
-              <>
-                {currentPosts[idx]?.imageData && (
-                  <img src={currentPosts[idx].imageData!} alt="Generated post visual"
-                    className="w-full rounded-xl object-cover" style={{ maxHeight: 220 }} />
-                )}
-                {currentPosts[idx]?.hook && (
-                  <div className="inline-flex items-center gap-1.5 bg-amber/10 border border-amber/20 rounded-full px-2.5 py-1">
-                    <span className="font-mono text-xs text-amber">{currentPosts[idx].hook}</span>
+      {/* Two-column body */}
+      <div className="flex-1 flex overflow-hidden">
+        {/* Left: post + comments */}
+        <div className="flex-1 overflow-y-auto px-6 py-6">
+          {loading ? (
+            <div className="flex flex-col items-center justify-center h-full gap-4">
+              <div className="w-8 h-8 rounded-full border-2 border-amber border-t-transparent animate-spin" />
+              <div className="font-mono text-xs text-dim">Generating posts...</div>
+            </div>
+          ) : (
+            <div className="max-w-lg mx-auto" key={`${active}-${idx}`} style={{ animation: 'fade-in 0.3s ease-out' }}>
+              {currentPosts.length > 1 && (
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex gap-1.5">
+                    {currentPosts.map((_, i) => (
+                      <button key={i} onClick={() => setIdx(i)} className="rounded-full transition-all duration-200"
+                        style={{ width: i === idx ? 20 : 8, height: 8, background: i === idx ? '#FF6100' : '#3E3E52' }} />
+                    ))}
                   </div>
-                )}
-                {active === 'x' && <XCard post={currentPosts[idx]} />}
-                {active === 'linkedin' && <LinkedInCard post={currentPosts[idx]} />}
-                {active === 'hn' && <HNCard post={currentPosts[idx]} />}
-                {active === 'ph' && <PHCard post={currentPosts[idx]} />}
-                {active === 'instagram' && <InstagramCard post={currentPosts[idx]} />}
-              </>
-            ) : (
-              <div className="text-center font-mono text-xs text-dim py-16">
-                {sessionId ? 'Loading posts...' : 'Open from a session to generate posts'}
+                  <div className="flex gap-1">
+                    <button onClick={() => setIdx(Math.max(0, idx - 1))} disabled={idx === 0}
+                      className="font-mono text-xs px-2 py-1 rounded border border-border text-muted disabled:opacity-30 hover:border-amber transition-colors">←</button>
+                    <button onClick={() => setIdx(Math.min(currentPosts.length - 1, idx + 1))} disabled={idx >= currentPosts.length - 1}
+                      className="font-mono text-xs px-2 py-1 rounded border border-border text-muted disabled:opacity-30 hover:border-amber transition-colors">→</button>
+                  </div>
+                </div>
+              )}
+              {currentPosts[idx]?.imageData && (
+                <img src={currentPosts[idx].imageData!} alt="Generated post visual"
+                  className="w-full rounded-xl object-cover mb-3" style={{ maxHeight: 220 }} />
+              )}
+              {active === 'x' && <XCard post={currentPosts[idx] ?? null} />}
+              {active === 'linkedin' && <LinkedInCard post={currentPosts[idx] ?? null} />}
+              {active === 'hn' && <HNCard post={currentPosts[idx] ?? null} />}
+              {active === 'ph' && <PHCard post={currentPosts[idx] ?? null} />}
+              {active === 'instagram' && <InstagramCard post={currentPosts[idx] ?? null} />}
+            </div>
+          )}
+        </div>
+
+        {/* Right: social media manager */}
+        <div className="w-72 shrink-0 border-l border-border overflow-y-auto bg-stage">
+          <SocialManager platform={active} />
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function XCard({ post }: { post: SocialPost | null }) {
+  const p = SOCIAL_POSTS.x
+  const text = post?.text ?? p.text
+  const [open, setOpen] = useState(false)
+  const comments = SIMULATED_COMMENTS.x
+  return (
+    <div>
+      <div className={`border border-border p-6 space-y-4 ${open ? 'rounded-t-2xl' : 'rounded-2xl'}`} style={{ background: '#0f1419', borderBottom: open ? '1px solid rgba(255,255,255,0.04)' : undefined }}>
+        <div className="flex items-start gap-3">
+          <div className="w-10 h-10 rounded-full bg-amber flex items-center justify-center text-void font-display text-lg shrink-0">{p.name[0]}</div>
+          <div><div className="text-snow text-sm font-medium">{p.name}</div><div className="text-muted font-mono text-xs">{p.handle} · {p.time}</div></div>
+        </div>
+        <p className="text-snow/90 text-sm leading-relaxed whitespace-pre-line">{text}</p>
+        <div className="flex items-center gap-6 pt-2 border-t border-white/5">
+          <button onClick={() => setOpen(v => !v)} className="font-mono text-xs text-muted hover:text-snow transition-colors">
+            💬 {p.replies.toLocaleString()} {open ? '▲' : '▼'}
+          </button>
+          <span className="font-mono text-xs text-muted">🔁 {p.retweets.toLocaleString()}</span>
+          <span className="font-mono text-xs text-muted">❤️ {p.likes.toLocaleString()}</span>
+        </div>
+      </div>
+      {open && (
+        <div className="border border-t-0 border-border rounded-b-2xl overflow-hidden" style={{ background: '#090d12' }}>
+          {comments.map(c => (
+            <div key={c.id} className="px-4 py-3 border-b border-white/[0.04] last:border-0 flex gap-3"
+              style={{ background: c.isFounder ? 'rgba(255,97,0,0.05)' : 'transparent' }}>
+              <div className="w-8 h-8 rounded-full shrink-0 flex items-center justify-center font-mono text-xs font-bold mt-0.5"
+                style={{ background: c.isFounder ? '#FF610022' : '#ffffff0e', color: c.isFounder ? '#FF6100' : '#6E6E84' }}>
+                {c.author[0]}
               </div>
-            )}
+              <div className="flex-1 min-w-0">
+                <div className="flex items-baseline gap-2 flex-wrap">
+                  <span className="text-snow text-xs font-medium">{c.author}</span>
+                  <span className="text-muted font-mono text-xs">{c.handle}</span>
+                  <span className="text-dim font-mono text-xs ml-auto">{c.timeAgo}</span>
+                </div>
+                <p className="text-snow/75 text-xs mt-1 leading-relaxed">{c.text}</p>
+                <div className="flex gap-4 mt-1.5">
+                  <span className="text-dim font-mono text-xs">❤️ {c.likes?.toLocaleString()}</span>
+                  {c.replies ? <span className="text-dim font-mono text-xs">💬 {c.replies}</span> : null}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function LinkedInCard({ post }: { post: SocialPost | null }) {
+  const p = SOCIAL_POSTS.linkedin
+  const text = post?.text ?? p.text
+  const [open, setOpen] = useState(false)
+  const comments = SIMULATED_COMMENTS.linkedin
+  return (
+    <div>
+      <div className={`border border-border p-6 space-y-4 ${open ? 'rounded-t-2xl' : 'rounded-2xl'}`} style={{ background: '#1c1c1c', borderBottom: open ? '1px solid rgba(255,255,255,0.05)' : undefined }}>
+        <div className="flex items-start gap-3">
+          <div className="w-12 h-12 rounded-xl flex items-center justify-center text-white font-display text-xl shrink-0" style={{ background: '#0A66C2' }}>{p.name[0]}</div>
+          <div><div className="text-snow text-sm font-medium">{p.name}</div><div className="text-muted font-mono text-xs">{p.headline}</div><div className="text-dim font-mono text-xs mt-0.5">{p.time} · 🌐</div></div>
+        </div>
+        <p className="text-snow/85 text-sm leading-relaxed whitespace-pre-line">{text}</p>
+        <div className="flex gap-4 pt-3 border-t border-white/5">
+          <span className="text-muted font-mono text-xs">👍 {p.likes.toLocaleString()}</span>
+          <button onClick={() => setOpen(v => !v)} className="font-mono text-xs text-muted hover:text-snow transition-colors">
+            💬 {p.comments} comments {open ? '▲' : '▼'}
+          </button>
+        </div>
+      </div>
+      {open && (
+        <div className="border border-t-0 border-border rounded-b-2xl overflow-hidden" style={{ background: '#181818' }}>
+          {comments.map(c => (
+            <div key={c.id} className="px-4 py-4 border-b border-white/[0.04] last:border-0 flex gap-3"
+              style={{ background: c.isFounder ? 'rgba(10,102,194,0.08)' : 'transparent' }}>
+              <div className="w-9 h-9 rounded-full shrink-0 flex items-center justify-center font-mono text-xs font-bold"
+                style={{ background: c.isFounder ? '#0A66C230' : '#ffffff12', color: c.isFounder ? '#70b5f9' : '#6E6E84' }}>
+                {c.author[0]}
+              </div>
+              <div className="flex-1">
+                <div className="text-snow text-xs font-medium">{c.author}</div>
+                <div className="text-muted font-mono text-xs">{c.title}</div>
+                <p className="text-snow/75 text-xs mt-2 leading-relaxed">{c.text}</p>
+                <div className="flex gap-3 mt-2">
+                  <span className="text-dim font-mono text-xs">👍 {c.likes?.toLocaleString()}</span>
+                  <span className="text-dim font-mono text-xs">{c.timeAgo}</span>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function HNCard({ post }: { post: SocialPost | null }) {
+  const p = SOCIAL_POSTS.hn
+  const text = post?.text ?? p.text
+  const [open, setOpen] = useState(false)
+  const comments = SIMULATED_COMMENTS.hn
+  return (
+    <div>
+      <div className={`border border-border p-6 space-y-3 ${open ? 'rounded-t-2xl' : 'rounded-2xl'}`} style={{ background: '#1a0f00', borderBottom: open ? '1px solid rgba(255,150,0,0.1)' : undefined }}>
+        <div className="flex items-start gap-3">
+          <div className="flex flex-col items-center shrink-0">
+            <div className="text-amber text-lg leading-none">▲</div>
+            <div className="font-mono text-sm text-amber font-bold">{p.points}</div>
           </div>
-        )}
-      </div>
-    </div>
-  )
-}
-
-function XCard({ post }: { post: SocialPost }) {
-  return (
-    <div className="rounded-2xl border border-border p-6 space-y-4" style={{ background: '#0f1419' }}>
-      <div className="flex items-start gap-3">
-        <div className="w-10 h-10 rounded-full bg-amber flex items-center justify-center text-void font-display text-lg shrink-0">{COMPANY.name[0]}</div>
-        <div><div className="text-snow text-sm font-medium">{COMPANY.name}</div><div className="text-muted font-mono text-xs">@{COMPANY.name.toLowerCase().replace(/\s+/g, '_')} · just now</div></div>
-      </div>
-      <p className="text-snow/90 text-sm leading-relaxed whitespace-pre-line">{post.text}</p>
-      <div className="flex items-center gap-6 pt-2 border-t border-white/5">
-        <span className="font-mono text-xs text-muted">💬 —</span>
-        <span className="font-mono text-xs text-muted">🔁 —</span>
-        <span className="font-mono text-xs text-muted">❤️ —</span>
-      </div>
-    </div>
-  )
-}
-
-function LinkedInCard({ post }: { post: SocialPost }) {
-  return (
-    <div className="rounded-2xl border border-border p-6 space-y-4" style={{ background: '#1c1c1c' }}>
-      <div className="flex items-start gap-3">
-        <div className="w-12 h-12 rounded-xl flex items-center justify-center text-white font-display text-xl shrink-0" style={{ background: '#0A66C2' }}>{COMPANY.name[0]}</div>
-        <div><div className="text-snow text-sm font-medium">{COMPANY.name}</div><div className="text-muted font-mono text-xs">Founder</div><div className="text-dim font-mono text-xs mt-0.5">just now · 🌐</div></div>
-      </div>
-      <p className="text-snow/85 text-sm leading-relaxed whitespace-pre-line">{post.text}</p>
-      <div className="flex gap-4 pt-3 border-t border-white/5">
-        <span className="text-muted font-mono text-xs">👍 —</span>
-        <span className="text-muted font-mono text-xs">💬 — comments</span>
-      </div>
-    </div>
-  )
-}
-
-function HNCard({ post }: { post: SocialPost }) {
-  const lines = post.text.split('\n')
-  const title = lines[0]
-  const body = lines.slice(1).join('\n').trim()
-  return (
-    <div className="rounded-2xl border border-border p-6 space-y-3" style={{ background: '#1a0f00' }}>
-      <div className="flex items-start gap-3">
-        <div className="flex flex-col items-center shrink-0"><div className="text-amber text-lg leading-none">▲</div><div className="font-mono text-sm text-amber font-bold">—</div></div>
-        <div className="space-y-2">
-          <div className="text-snow font-medium text-sm">{title}</div>
-          {body && <p className="text-snow/70 text-xs leading-relaxed">{body}</p>}
-          <div className="font-mono text-xs text-dim">submitted just now by <span className="text-amber/70">{COMPANY.name.toLowerCase().replace(/\s+/g, '')}</span> · — comments</div>
+          <div className="space-y-2">
+            <div className="text-snow font-medium text-sm">{p.title}</div>
+            <p className="text-snow/70 text-xs leading-relaxed">{post?.text ?? p.text}</p>
+            <div className="font-mono text-xs text-dim">
+              submitted {p.time} by <span className="text-amber/70">{p.submitter}</span> ·{' '}
+              <button onClick={() => setOpen(v => !v)} className="text-amber/70 hover:text-amber transition-colors">
+                {p.comments} comments {open ? '▲' : '▼'}
+              </button>
+            </div>
+          </div>
         </div>
       </div>
+      {open && (
+        <div className="border border-t-0 border-border rounded-b-2xl overflow-hidden divide-y divide-amber/5" style={{ background: '#120a00' }}>
+          {comments.map(c => (
+            <div key={c.id} className="px-4 py-3 flex gap-3"
+              style={{ background: c.isFounder ? 'rgba(255,150,0,0.06)' : 'transparent' }}>
+              <div className="flex flex-col items-center shrink-0 gap-0.5 mt-0.5">
+                <span className="text-amber/60 text-xs leading-none">▲</span>
+                <span className="font-mono text-xs text-amber font-bold">{c.points}</span>
+              </div>
+              <div className="flex-1">
+                <div className="font-mono text-xs text-amber/70 mb-1">
+                  {c.author}{c.isFounder ? ' (founder)' : ''} · {c.timeAgo}
+                </div>
+                <p className="text-snow/75 text-xs leading-relaxed font-mono">{c.text}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
 
-function PHCard({ post }: { post: SocialPost }) {
-  const lines = post.text.split('\n')
-  const tagline = lines[0]
-  const description = lines.slice(1).join('\n').trim()
+function PHCard({ post }: { post: SocialPost | null }) {
+  const p = SOCIAL_POSTS.ph
+  const [open, setOpen] = useState(false)
+  const comments = SIMULATED_COMMENTS.ph
   return (
-    <div className="rounded-2xl border border-border p-6 space-y-4" style={{ background: '#1a0a00' }}>
-      <div className="flex items-start gap-4">
-        <div className="shrink-0 flex flex-col items-center gap-1 border border-orange-500/40 rounded-xl px-3 py-2">
-          <span className="text-orange-400 text-sm">▲</span>
-          <span className="font-mono text-xs text-orange-400 font-bold">—</span>
+    <div>
+      <div className={`border border-border p-6 space-y-4 ${open ? 'rounded-t-2xl' : 'rounded-2xl'}`} style={{ background: '#1a0a00', borderBottom: open ? '1px solid rgba(255,97,53,0.12)' : undefined }}>
+        <div className="flex items-start gap-4">
+          <div className="shrink-0 flex flex-col items-center gap-1 border border-coral/40 rounded-xl px-3 py-2">
+            <span className="text-coral text-sm">▲</span>
+            <span className="font-mono text-xs text-coral font-bold">{p.upvotes}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-10 h-10 rounded-xl bg-coral flex items-center justify-center text-void font-display text-lg">{p.name[0]}</div>
+            <div><div className="text-snow font-medium text-sm">{p.name}</div><div className="text-muted font-mono text-xs">{p.tagline}</div></div>
+          </div>
         </div>
-        <div className="flex items-center gap-2">
-          <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white font-display text-lg" style={{ background: '#FF6154' }}>{COMPANY.name[0]}</div>
-          <div><div className="text-snow font-medium text-sm">{COMPANY.name}</div><div className="text-muted font-mono text-xs">{tagline}</div></div>
+        <p className="text-snow/80 text-sm leading-relaxed whitespace-pre-line">{post?.text ?? p.description}</p>
+        <div className="flex items-center justify-between">
+          <div className="inline-flex items-center gap-2 bg-coral/10 border border-coral/20 rounded-full px-3 py-1">
+            <span className="text-coral text-xs">🔸</span>
+            <span className="font-mono text-xs text-coral">{p.badge}</span>
+          </div>
+          <button onClick={() => setOpen(v => !v)} className="font-mono text-xs text-muted hover:text-snow transition-colors">
+            💬 {comments.length} comments {open ? '▲' : '▼'}
+          </button>
         </div>
       </div>
-      {description && <p className="text-snow/80 text-sm leading-relaxed whitespace-pre-line">{description}</p>}
+      {open && (
+        <div className="border border-t-0 border-border rounded-b-2xl overflow-hidden divide-y divide-white/[0.04]" style={{ background: '#120700' }}>
+          {comments.map(c => (
+            <div key={c.id} className="px-4 py-3 flex gap-3"
+              style={{ background: c.isFounder ? 'rgba(255,97,53,0.06)' : 'transparent' }}>
+              <div className="w-8 h-8 rounded-full shrink-0 flex items-center justify-center font-mono text-xs font-bold"
+                style={{ background: c.isFounder ? '#FF615420' : '#ffffff0e', color: c.isFounder ? '#FF6154' : '#6E6E84' }}>
+                {c.author[0]}
+              </div>
+              <div className="flex-1">
+                <div className="flex items-center gap-2 flex-wrap mb-1">
+                  <span className="text-snow text-xs font-medium">{c.author}</span>
+                  {c.badge && (
+                    <span className="font-mono text-xs px-1.5 py-0.5 rounded-full border"
+                      style={{ borderColor: c.badge === 'Maker' ? '#FF615440' : '#FF610040', color: c.badge === 'Maker' ? '#FF6154' : '#FF6100', fontSize: '8px' }}>
+                      {c.badge}
+                    </span>
+                  )}
+                  <span className="text-dim font-mono text-xs ml-auto">{c.timeAgo}</span>
+                </div>
+                <p className="text-snow/75 text-xs leading-relaxed">{c.text}</p>
+                <div className="mt-1.5"><span className="text-dim font-mono text-xs">▲ {c.likes?.toLocaleString()}</span></div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
 
-function InstagramCard({ post }: { post: SocialPost }) {
-  const parts = post.text.split('\n\n')
-  const caption = parts[0]
-  const hashtags = parts.slice(1).join(' ')
+function InstagramCard({ post }: { post: SocialPost | null }) {
+  const [open, setOpen] = useState(false)
+  const comments = SIMULATED_COMMENTS.instagram
+  const parts = (post?.text ?? '').split('\n\n')
+  const caption = parts[0] || 'Building the future of support infrastructure. 80% of tickets resolved before a human sees them. 🚀'
+  const hashtags = parts.slice(1).join(' ') || '#saas #ai #startups #techfounder #yc #buildinpublic'
   return (
-    <div className="rounded-2xl border border-border p-6 space-y-4" style={{ background: '#1a1a2e' }}>
-      <div className="flex items-center gap-3">
-        <div className="w-10 h-10 rounded-full flex items-center justify-center text-white font-display text-lg shrink-0"
-          style={{ background: 'linear-gradient(135deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888)' }}>
-          {COMPANY.name[0]}
+    <div>
+      <div className={`border border-border p-6 space-y-4 ${open ? 'rounded-t-2xl' : 'rounded-2xl'}`} style={{ background: '#1a1a2e', borderBottom: open ? '1px solid rgba(255,255,255,0.05)' : undefined }}>
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-full flex items-center justify-center text-white font-display text-lg shrink-0"
+            style={{ background: 'linear-gradient(135deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888)' }}>
+            {COMPANY.name[0]}
+          </div>
+          <div>
+            <div className="text-snow text-sm font-medium">{COMPANY.name.toLowerCase().replace(/\s+/g, '.')}</div>
+            <div className="text-dim font-mono text-xs">just now</div>
+          </div>
         </div>
-        <div><div className="text-snow text-sm font-medium">{COMPANY.name.toLowerCase().replace(/\s+/g, '.')}</div><div className="text-dim font-mono text-xs">just now</div></div>
+        <p className="text-snow/90 text-sm leading-relaxed whitespace-pre-line">{caption}</p>
+        {hashtags && <p className="text-blue-400/70 text-xs leading-relaxed">{hashtags}</p>}
+        <div className="flex items-center gap-5 pt-2 border-t border-white/5">
+          <span className="text-muted font-mono text-xs">❤️ 2,847</span>
+          <button onClick={() => setOpen(v => !v)} className="font-mono text-xs text-muted hover:text-snow transition-colors">
+            💬 {comments.length} comments {open ? '▲' : '▼'}
+          </button>
+          <span className="text-muted font-mono text-xs">✈️ 412</span>
+        </div>
       </div>
-      <p className="text-snow/90 text-sm leading-relaxed whitespace-pre-line">{caption}</p>
-      {hashtags && <p className="text-blue-400/70 text-xs leading-relaxed">{hashtags}</p>}
-      <div className="flex items-center gap-5 pt-2 border-t border-white/5">
-        <span className="text-muted font-mono text-xs">❤️ —</span>
-        <span className="text-muted font-mono text-xs">💬 —</span>
-        <span className="text-muted font-mono text-xs">✈️ —</span>
+      {open && (
+        <div className="border border-t-0 border-border rounded-b-2xl overflow-hidden divide-y divide-white/[0.04]" style={{ background: '#141420' }}>
+          {comments.map(c => (
+            <div key={c.id} className="px-4 py-3 flex gap-3">
+              <div className="w-7 h-7 rounded-full shrink-0 flex items-center justify-center text-xs font-mono font-bold"
+                style={{ background: 'linear-gradient(135deg, #f09433, #bc1888)', color: '#fff', fontSize: '10px' }}>
+                {c.author[0].toUpperCase()}
+              </div>
+              <div className="flex-1">
+                <div className="flex items-baseline gap-2">
+                  <span className="text-snow text-xs font-medium">{c.author}</span>
+                  <span className="text-dim font-mono text-xs ml-auto">{c.timeAgo}</span>
+                </div>
+                <p className="text-snow/75 text-xs mt-0.5 leading-relaxed">{c.text}</p>
+                <span className="text-dim font-mono text-xs mt-1 block">❤️ {c.likes?.toLocaleString()}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function SocialManager({ platform }: { platform: Platform }) {
+  return (
+    <div className="p-4 space-y-5">
+      <div className="pt-2">
+        <div className="font-display text-amber tracking-widest text-xs">SOCIAL MANAGER</div>
+        <div className="font-mono text-xs text-dim mt-0.5 leading-relaxed">AI strategy for your product launch</div>
+      </div>
+
+      {MANAGER_TIPS.map(section => (
+        <div key={section.category} className="space-y-2">
+          <div className="flex items-center gap-1.5">
+            <span className="text-sm">{section.icon}</span>
+            <span className="font-mono text-xs font-bold uppercase tracking-wide" style={{ color: section.color, fontSize: '9px' }}>
+              {section.category}
+            </span>
+          </div>
+          <ul className="space-y-2">
+            {section.tips.map((tip, i) => (
+              <li key={i} className="flex items-start gap-2">
+                <span className="shrink-0 mt-1.5 rounded-full" style={{ width: 4, height: 4, background: section.color, display: 'inline-block' }} />
+                <span className="text-snow/65 leading-snug" style={{ fontSize: '11px' }}>{tip}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ))}
+
+      <div className="rounded-xl p-3 space-y-2.5" style={{ background: 'rgba(255,97,0,0.07)', border: '1px solid rgba(255,97,0,0.18)' }}>
+        <div className="font-mono text-xs text-amber font-bold">Quick wins this week</div>
+        {[
+          'Post the 4.2h → 9s stat as an image card',
+          'Reply to every @mention within 1 hour',
+          'Ship a Show HN with your full methodology',
+        ].map((tip, i) => (
+          <div key={i} className="flex items-start gap-2">
+            <span className="text-amber shrink-0 font-mono text-xs">→</span>
+            <span className="text-snow/80 leading-snug" style={{ fontSize: '11px' }}>{tip}</span>
+          </div>
+        ))}
       </div>
     </div>
   )
@@ -697,15 +1002,15 @@ function InvestorBubble({ investor, stats, isSpeaking, isSelected, onClick }: {
         </div>
       )}
 
-      {/* Fire — shown when angry/skeptical */}
-      {stats.mood === 'skeptical' && (
-        <div style={{ fontSize: headSize * 0.55, lineHeight: 1, animation: 'fire-flicker 0.6s ease-in-out infinite', zIndex: 3, marginBottom: -4, userSelect: 'none' }}>
-          🔥
-        </div>
-      )}
-
-      {/* Head — bobs wildly */}
-      <div style={{ animation: `bobble ${investor.bobbleDur} ease-in-out ${investor.bobbleDelay} infinite`, zIndex: 2, marginBottom: -5 }}>
+      {/* Head + fire together — everything inside bobbles as one unit */}
+      <div
+        style={{ animation: `bobble ${investor.bobbleDur} ease-in-out ${investor.bobbleDelay} infinite`, zIndex: 2, marginBottom: -5, display: 'flex', flexDirection: 'column', alignItems: 'center' }}
+      >
+        {stats.mood === 'skeptical' && (
+          <div style={{ marginBottom: -Math.round(headSize * 0.12), zIndex: 3 }}>
+            <FireSVG size={headSize} investorId={investor.id} />
+          </div>
+        )}
         <div
           className="relative rounded-full flex items-center justify-center"
           style={{
@@ -762,6 +1067,64 @@ function InvestorBubble({ investor, stats, isSpeaking, isSelected, onClick }: {
         <div className="font-mono mt-0.5" style={{ color: `${investor.color}65`, fontSize: '7px', lineHeight: 1 }}>{investor.role}</div>
       </div>
     </div>
+  )
+}
+
+// ─── SVG Fire ─────────────────────────────────────────────────────────────────
+
+function FireSVG({ size, investorId }: { size: number; investorId: string }) {
+  const o = `fire-${investorId}`
+  const w = Math.round(size * 0.58)
+  const h = Math.round(size * 0.82)
+  return (
+    <svg viewBox="0 0 36 50" width={w} height={h} style={{ display: 'block', animation: 'fire-flicker 0.52s ease-in-out infinite' }}>
+      <defs>
+        <radialGradient id={`${o}-a`} cx="50%" cy="78%" r="62%" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="0" y2="50">
+          <stop offset="0%" stopColor="#FF4400" />
+          <stop offset="100%" stopColor="#AA1100" stopOpacity="0.7" />
+        </radialGradient>
+        <radialGradient id={`${o}-b`} cx="50%" cy="82%" r="58%" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor="#FF7A00" />
+          <stop offset="100%" stopColor="#FF2200" stopOpacity="0.8" />
+        </radialGradient>
+        <radialGradient id={`${o}-c`} cx="50%" cy="88%" r="52%" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor="#FFD000" />
+          <stop offset="100%" stopColor="#FF8800" />
+        </radialGradient>
+      </defs>
+
+      {/* Outer flame — wide, deep red-orange */}
+      <path
+        d="M18,48 C6,45 0,30 2,17 C4,8 8,2 12,4 C11,1 15,0 18,1 C21,0 25,1 24,4 C28,2 32,8 34,17 C36,30 30,45 18,48 Z"
+        fill={`url(#${o}-a)`}
+        opacity="0.92"
+      />
+      {/* Left side tongue */}
+      <path
+        d="M10,42 C4,36 3,24 6,14 C7,9 10,5 12,7 C10,4 12,1 14,4 C12,10 11,20 14,30 C15,36 14,42 10,42 Z"
+        fill="#FF3300"
+        opacity="0.6"
+      />
+      {/* Right side tongue */}
+      <path
+        d="M26,42 C32,36 33,24 30,14 C29,9 26,5 24,7 C26,4 24,1 22,4 C24,10 25,20 22,30 C21,36 22,42 26,42 Z"
+        fill="#FF3300"
+        opacity="0.6"
+      />
+      {/* Middle flame — orange */}
+      <path
+        d="M18,44 C10,40 7,27 9,16 C11,7 14,3 18,5 C22,3 25,7 27,16 C29,27 26,40 18,44 Z"
+        fill={`url(#${o}-b)`}
+      />
+      {/* Inner flame — yellow-orange */}
+      <path
+        d="M18,38 C13,34 11,23 13,14 C14,8 16,5 18,7 C20,5 22,8 23,14 C25,23 23,34 18,38 Z"
+        fill={`url(#${o}-c)`}
+      />
+      {/* Hot core */}
+      <ellipse cx="18" cy="30" rx="3.5" ry="6" fill="#FFEE66" opacity="0.85" />
+      <ellipse cx="18" cy="33" rx="1.8" ry="3" fill="#FFFFFF" opacity="0.45" />
+    </svg>
   )
 }
 

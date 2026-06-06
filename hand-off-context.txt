@@ -1,0 +1,118 @@
+YC Demo Day Simulator handoff context
+
+Project state
+- Repo: /Users/AG/Insforge-Hack
+- Remote: https://github.com/Swiftcode1/Insforge-Hack.git
+- Branch: main
+- Current HEAD: 2bf806a (Wire Gemini investor responses)
+- Working tree was clean when this handoff was written.
+
+What was built
+- InsForge project linked: YC Sim
+- InsForge project id: d0f375b8-a059-426e-9989-45b3afe61817
+- OSS host: https://mcqnsis9.us-east.insforge.app
+- Local backend API: http://127.0.0.1:8787
+- Backend runs as a Node server in src/server/index.mjs
+- Next app is still present and builds successfully
+- Gemini is wired for pitch generation, social post generation, answer evaluation, final reports, and investor responses
+- Investor chat now uses Gemini through POST /api/investor-response
+- Dashboard /session room pulls agent personas from InsForge via GET /api/agent-personalities
+- A reusable agent_personalities table exists in InsForge and has been seeded
+- Full backend flow has been verified end to end
+
+Important backend routes
+- GET /health
+- POST /api/startups
+- POST /api/sessions
+- GET /api/sessions/:id
+- POST /api/sessions/:id/answer
+- POST /api/sessions/:id/finalize
+- POST /api/sessions/:id/social-posts
+- GET /api/agent-personalities
+- POST /api/investor-response
+- POST /api/avatars/create
+- POST /api/avatars/:id/speak
+
+Important files
+- src/server/index.mjs
+- src/server/services/memoirAdapter.mjs
+- src/server/services/gemini.mjs
+- src/server/store/index.mjs
+- src/server/store/insforgeStore.mjs
+- src/server/store/jsonStore.mjs
+- app/dashboard/[id]/page.tsx
+- roles.md
+- ADVAITA_BACKEND_README.md
+- insforge.schema.sql
+- migrations/20260606180406_create-yc-sim-schema.sql
+- migrations/20260606192323_create-agent-personalities.sql
+
+InsForge tables
+- startups
+- pitch_sessions
+- investor_questions
+- launch_assets
+- avatars
+- agent_personalities
+
+Agent personality coverage
+- 31 personas seeded in InsForge
+- Categories include investor, media, customer, critic, risk, operator, coach, judge, partner
+- Examples: Angel Investor, Skeptical Partner, Technical Partner, Growth Partner, Seed Investor, Series A Investor, Tech Journalist, Launch Reporter, Hacker News Commenter, Product Hunt Maker, Enterprise Buyer, Legal Counsel, Security Reviewer, YC Partner, Demo Day Judge, Pitch Coach
+
+Gemini notes
+- .env at repo root should contain GEMINI_API_KEY
+- src/server/index.mjs loads .env manually at startup
+- If GEMINI_API_KEY is missing, the server falls back to mocks
+- Do not put the real Gemini key in .env.example
+
+InsForge CLI notes
+- Authenticated already
+- CLI current context worked for YC Sim
+- To inspect data:
+  - npx @insforge/cli db tables
+  - npx @insforge/cli db query "select * from startups limit 5;"
+  - npx @insforge/cli db query "select * from agent_personalities limit 5;"
+
+Verified tests
+- npm run build passes
+- GET /api/agent-personalities returns 31 personas
+- POST /api/investor-response returns Gemini-generated investor replies
+- POST /api/startups works
+- POST /api/sessions works
+- POST /api/sessions/:id/answer works
+- POST /api/sessions/:id/finalize works
+
+Recent repo behavior
+- Git remote now points to Swiftcode1/Insforge-Hack
+- Local pushes were successful before the latest context changes
+- If pushing after new edits, use:
+  - git add .
+  - git commit -m "..."
+  - git pull --rebase origin main
+  - git push origin main
+
+Current important implementation details
+- Dashboard investor bubbles are currently being replaced with persona data loaded from InsForge
+- The room page still has older hardcoded investor display data in app/session/[id]/room/page.tsx
+- memoirAdapter.mjs now contains Gemini-backed pitch/social/final/report/investor response generation
+- The backend uses fallback mock content if Gemini is unavailable
+
+Likely next cleanup steps
+- Finish any remaining dashboard/room persona wiring if needed
+- Keep route contracts stable for doniv and eshwar
+- If more backend changes are made, re-run npm run build and a local API smoke test
+
+Useful local test flow
+1. npm run dev:api
+2. curl http://127.0.0.1:8787/health
+3. Create startup
+4. Create session
+5. Submit answer
+6. Finalize session
+7. Query InsForge tables
+
+Notes for Claude Code
+- The workspace has both the Next app and the Node backend.
+- Preserve the existing API contracts unless the team explicitly changes them.
+- Do not overwrite user changes outside the current task.
